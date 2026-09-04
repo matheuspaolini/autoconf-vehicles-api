@@ -12,7 +12,9 @@ class VehicleImage extends Model
     /** @use HasFactory<VehicleImageFactory> */
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'path',
+    ];
 
     protected function casts(): array
     {

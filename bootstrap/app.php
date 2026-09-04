@@ -7,7 +7,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        api: __DIR__ . '/../routes/api.php',
+        api: __DIR__.'/../routes/api.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -15,6 +15,4 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->append(RequestContext::class);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
-
-    })->create();
+    ->withExceptions(function (Exceptions $exceptions) {})->create();

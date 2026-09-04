@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\DeleteVehicleImage;
+use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
 use App\Models\Vehicle;
 use App\Models\VehicleImage;
 use Dedoc\Scramble\Attributes\HeaderParameter;
@@ -18,10 +18,10 @@ class DeleteVehicleImageController extends Controller
         type: 'string',
     )]
     #[Response(429, 'Too many API requests.')]
-    public function __invoke(Request $request, Vehicle $vehicle, VehicleImage $image, DeleteVehicleImage $action)
+    public function __invoke(Request $request, Vehicle $vehicle, VehicleImage $image, VehicleImageLifecycle $lifecycle)
     {
         $this->authorize('manageImages', $vehicle);
-        $action->execute($vehicle, $image, $request->user());
+        $lifecycle->delete($vehicle, $image, $request->user());
 
         return response()->noContent();
     }

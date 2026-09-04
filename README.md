@@ -13,12 +13,12 @@ touch database/database.sqlite
 php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link
-php artisan serve
+composer run serve
 ```
 
-Replace `DB_DATABASE` in `.env` with the absolute path to `database/database.sqlite`. The SPA and API must both use `localhost` (not a mix of `localhost` and `127.0.0.1`) because browser cookies are host-sensitive.
+Replace `DB_DATABASE` in `.env` with the absolute path to `database/database.sqlite`. SQLite is the supported database for this challenge. The SPA and API must both use `localhost` (not a mix of `localhost` and `127.0.0.1`) because browser cookies are host-sensitive.
 
-The default origins are API `http://localhost:8000` and SPA `http://localhost:5173`. Set `FRONTEND_URL` and `SANCTUM_STATEFUL_DOMAINS` together if either changes. Optional MySQL values are `DB_CONNECTION=mysql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`.
+The default origins are API `http://localhost:8080` and SPA `http://localhost:5173`. Set `APP_URL`, `SERVER_HOST`, `SERVER_PORT`, `FRONTEND_URL`, and `SANCTUM_STATEFUL_DOMAINS` together if either changes.
 
 Seed accounts: `admin@example.com` / `password` and `user@example.com` / `password`.
 
@@ -34,16 +34,20 @@ php artisan migrate:fresh --seed
 
 Public image files live on the `public` disk under `storage/app/public/vehicles`; `storage:link` exposes them at `/storage`.
 
+Each non-empty Vehicle Gallery has exactly one cover image. The gallery lifecycle enforces this during application mutations, while SQLite prevents a Vehicle from having multiple covers.
+
+Image file deletion is attempted immediately after the related database deletion commits. If local storage rejects a deletion, the API still completes the logical deletion and records a warning for operator follow-up.
+
 ## API examples
 
 ```bash
-curl -c cookies.txt http://localhost:8000/sanctum/csrf-cookie
+curl -c cookies.txt http://localhost:8080/sanctum/csrf-cookie
 curl -b cookies.txt -c cookies.txt -H 'Content-Type: application/json' -H 'X-XSRF-TOKEN: <token>' \
-  -d '{"email":"user@example.com","password":"password"}' http://localhost:8000/api/auth/login
-curl -b cookies.txt 'http://localhost:8000/api/vehicles?q=onix&sort=km,-valor_venda'
-curl -b cookies.txt -F 'files[]=@vehicle.jpg' http://localhost:8000/api/vehicles/1/images
-curl -b cookies.txt -X PATCH http://localhost:8000/api/vehicles/1/images/2/cover
-curl -b cookies.txt -X DELETE http://localhost:8000/api/vehicles/1/images/2
+  -d '{"email":"user@example.com","password":"password"}' http://localhost:8080/api/auth/login
+curl -b cookies.txt 'http://localhost:8080/api/vehicles?q=onix&sort=km,-valor_venda'
+curl -b cookies.txt -F 'files[]=@vehicle.jpg' http://localhost:8080/api/vehicles/1/images
+curl -b cookies.txt -X PATCH http://localhost:8080/api/vehicles/1/images/2/cover
+curl -b cookies.txt -X DELETE http://localhost:8080/api/vehicles/1/images/2
 ```
 
 ## Presentation checklist

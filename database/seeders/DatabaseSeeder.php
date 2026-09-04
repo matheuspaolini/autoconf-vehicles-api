@@ -6,7 +6,6 @@ use App\Enums\FuelType;
 use App\Enums\Transmission;
 use App\Models\User;
 use App\Models\Vehicle;
-use App\Models\VehicleImage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
 
@@ -36,11 +35,13 @@ class DatabaseSeeder extends Seeder
             $vehicle = Vehicle::factory()->forOwner($owner)->create(compact('placa', 'chassi', 'marca', 'modelo', 'versao', 'cor', 'km', 'cambio', 'combustivel') + ['valor_venda' => $valor]);
             $path = "vehicles/{$vehicle->id}/placeholder.png";
             Storage::disk('public')->put($path, file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')));
-            VehicleImage::create(['vehicle_id' => $vehicle->id, 'path' => $path, 'is_cover' => true]);
+            // The source is already stored, so it is not an HTTP upload for the lifecycle.
+            $image = $vehicle->images()->create(['path' => $path]);
+            $image->forceFill(['is_cover' => $vehicle->images()->count() === 1])->save();
             if ($index < 3) {
                 $second = "vehicles/{$vehicle->id}/placeholder-2.png";
                 Storage::disk('public')->copy($path, $second);
-                VehicleImage::create(['vehicle_id' => $vehicle->id, 'path' => $second]);
+                $vehicle->images()->create(['path' => $second]);
             }
         }
     }

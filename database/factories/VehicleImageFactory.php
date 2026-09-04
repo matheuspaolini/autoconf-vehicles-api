@@ -13,7 +13,7 @@ class VehicleImageFactory extends Factory
 
     public function definition(): array
     {
-        return ['vehicle_id' => Vehicle::factory(), 'path' => 'vehicles/'.fake()->numberBetween(1, 999).'/'.fake()->uuid().'.png', 'is_cover' => false];
+        return ['vehicle_id' => Vehicle::factory(), 'path' => 'vehicles/'.fake()->numberBetween(1, 999).'/'.fake()->uuid().'.png'];
     }
 
     public function cover(): static
