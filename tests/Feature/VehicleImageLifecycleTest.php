@@ -112,7 +112,6 @@ class VehicleImageLifecycleTest extends TestCase
             app(VehicleImageLifecycle::class)->setCover($vehicle, $otherCover, $owner, $vehicle->lock_version);
             $this->fail('Expected an image from another vehicle to be rejected.');
         } catch (ModelNotFoundException) {
-            // The Action must fail before clearing either vehicle's cover.
         }
 
         $this->assertTrue($cover->refresh()->is_cover);

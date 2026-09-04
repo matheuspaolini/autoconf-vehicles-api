@@ -14,6 +14,14 @@ docker compose up --build --wait
 
 This starts PostgreSQL, installs PHP dependencies in a Docker volume, applies pending migrations, and starts the API, queue worker, and scheduler. The command returns only after PostgreSQL and the API health endpoint are healthy.
 
+To attach to new API logs after startup completes:
+
+```bash
+docker compose up --build --wait && docker compose logs --follow --tail=0 api
+```
+
+Press `Ctrl+C` to stop following logs; the containers continue running. Use `--tail=100` instead of `--tail=0` to include recent startup output.
+
 - API: `http://localhost:8080`
 - Health endpoint: `http://localhost:8080/up`
 - OpenAPI UI: `http://localhost:8080/docs/api`

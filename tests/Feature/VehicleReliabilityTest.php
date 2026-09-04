@@ -74,7 +74,6 @@ class VehicleReliabilityTest extends TestCase
             ], $vehicle->lock_version);
             $this->fail('Expected the gallery capacity check to reject the upload.');
         } catch (ValidationException) {
-            // The transaction must leave the gallery unchanged.
         }
 
         $this->assertSame(20, $vehicle->images()->count());

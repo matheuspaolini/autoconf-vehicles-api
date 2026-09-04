@@ -9,6 +9,7 @@ use App\Http\Requests\UploadVehicleImagesRequest;
 use App\Http\Resources\VehicleImageResource;
 use App\Models\Vehicle;
 use Dedoc\Scramble\Attributes\Endpoint;
+use Dedoc\Scramble\Attributes\Header;
 use Dedoc\Scramble\Attributes\HeaderParameter;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Support\Str;
@@ -17,7 +18,7 @@ use Throwable;
 
 class UploadVehicleImagesController extends Controller
 {
-    #[Endpoint(description: 'Upload between one and ten JPEG, PNG, or WebP files. Each file must be at most 2 MiB.')]
+    #[Endpoint(description: 'Upload between one and ten JPEG, PNG, or WebP files. Each file must be at most 2 MiB, and a Vehicle Gallery can contain at most 20 images. Reuse an Idempotency-Key only to retry the identical batch for up to 24 hours; a completed retry returns the original response without duplicating files or image rows.')]
     #[HeaderParameter(
         'X-XSRF-TOKEN',
         'Value from the XSRF-TOKEN cookie issued by GET /sanctum/csrf-cookie.',
@@ -35,8 +36,15 @@ class UploadVehicleImagesController extends Controller
         'A UUID that remains unchanged while retrying the identical upload batch.',
         true,
         type: 'string',
+        format: 'uuid',
     )]
+    #[Response(201, 'Images uploaded successfully.')]
+    #[Response(409, 'The Idempotency-Key was used for a different batch or that batch is still processing.')]
+    #[Response(412, 'The Vehicle version is malformed or no longer current.')]
+    #[Response(422, 'The upload is invalid or would exceed the 20-image Vehicle Gallery limit.')]
+    #[Response(428, 'The If-Match header is required.')]
     #[Response(429, 'Too many API or upload requests.')]
+    #[Header('ETag', 'Strong Vehicle version for a subsequent existing-Vehicle mutation.', type: 'string', required: true, status: 201)]
     public function __invoke(
         UploadVehicleImagesRequest $request,
         Vehicle $vehicle,

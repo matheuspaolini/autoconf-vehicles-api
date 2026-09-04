@@ -42,7 +42,6 @@ class VehicleMediaRetirementTest extends TestCase
                 throw new RuntimeException('Rollback media retirement.');
             });
         } catch (RuntimeException) {
-            // The cleanup task and after-commit dispatch must be discarded.
         }
 
         $this->assertDatabaseCount('media_cleanup_tasks', 0);

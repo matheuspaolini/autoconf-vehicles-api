@@ -13,6 +13,7 @@ use App\Http\Resources\VehicleDetailResource;
 use App\Http\Resources\VehicleListResource;
 use App\Models\User;
 use App\Models\Vehicle;
+use Dedoc\Scramble\Attributes\Header;
 use Dedoc\Scramble\Attributes\HeaderParameter;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
@@ -43,6 +44,7 @@ class VehicleController extends Controller
         type: 'string',
     )]
     #[Response(429, 'Too many API requests.')]
+    #[Header('ETag', 'Strong Vehicle version for a subsequent existing-Vehicle mutation.', type: 'string', required: true, status: 201)]
     public function store(StoreVehicleRequest $request, VehicleRead $vehicleRead, VehicleVersion $version): JsonResponse
     {
         /** @var User $actor */
@@ -59,6 +61,7 @@ class VehicleController extends Controller
     }
 
     #[Response(429, 'Too many API requests.')]
+    #[Header('ETag', 'Strong Vehicle version for a subsequent existing-Vehicle mutation.', type: 'string', required: true, status: 200)]
     public function show(Request $request, Vehicle $vehicle, VehicleRead $vehicleRead, VehicleVersion $version): JsonResponse
     {
         $this->authorize('view', $vehicle);
@@ -80,7 +83,10 @@ class VehicleController extends Controller
         true,
         type: 'string',
     )]
+    #[Response(412, 'The Vehicle version is malformed or no longer current.')]
+    #[Response(428, 'The If-Match header is required.')]
     #[Response(429, 'Too many API requests.')]
+    #[Header('ETag', 'Strong Vehicle version for a subsequent existing-Vehicle mutation.', type: 'string', required: true, status: 200)]
     public function update(UpdateVehicleRequest $request, Vehicle $vehicle, VehicleRead $vehicleRead, VehicleVersion $version): JsonResponse
     {
         $expectedVersion = $version->expectedVersion($request, $vehicle);
@@ -115,7 +121,10 @@ class VehicleController extends Controller
         true,
         type: 'string',
     )]
+    #[Response(412, 'The Vehicle version is malformed or no longer current.')]
+    #[Response(428, 'The If-Match header is required.')]
     #[Response(429, 'Too many API requests.')]
+    #[Header('ETag', 'Strong Vehicle version after the deletion.', type: 'string', required: true, status: 204)]
     public function destroy(Request $request, Vehicle $vehicle, DeleteVehicle $action, VehicleVersion $version)
     {
         $this->authorize('delete', $vehicle);

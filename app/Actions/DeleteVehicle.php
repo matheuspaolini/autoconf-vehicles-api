@@ -11,12 +11,12 @@ final class DeleteVehicle
 {
     public function __construct(
         private readonly VehicleMediaRetirement $mediaRetirement,
-    ) {}
+    ) {
+    }
 
     public function execute(Vehicle $vehicle, int $expectedVersion): void
     {
         DB::transaction(function () use ($vehicle, $expectedVersion): void {
-            /** @var Vehicle $lockedVehicle */
             $lockedVehicle = Vehicle::query()
                 ->whereKey($vehicle->getKey())
                 ->lockForUpdate()

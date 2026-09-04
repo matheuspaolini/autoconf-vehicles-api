@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\Storage;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
         $admin = User::factory()->admin()->create(['name' => 'Administrator', 'email' => 'admin@example.com', 'password' => 'password']);
