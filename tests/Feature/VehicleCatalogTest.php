@@ -48,6 +48,19 @@ class VehicleCatalogTest extends TestCase
             ->assertJsonPath('data.0.id', $first->id);
     }
 
+    public function test_catalog_without_a_scope_remains_shared(): void
+    {
+        $actor = User::factory()->create();
+        $other = User::factory()->create();
+        Vehicle::factory()->forOwner($actor)->create(['marca' => 'Honda']);
+        Vehicle::factory()->forOwner($other)->create(['marca' => 'Honda']);
+
+        $this->actingAs($actor)
+            ->getJson('/api/vehicles?marca=honda')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+    }
+
     public function test_unsupported_sort_and_large_page_size_are_rejected(): void
     {
         $actor = User::factory()->create();
@@ -55,6 +68,7 @@ class VehicleCatalogTest extends TestCase
         $this->actingAs($actor)->getJson('/api/vehicles?sort=user_id')->assertUnprocessable()->assertJsonValidationErrors('sort');
         $this->actingAs($actor)->getJson('/api/vehicles?per_page=101')->assertUnprocessable()->assertJsonValidationErrors('per_page');
         $this->actingAs($actor)->getJson('/api/vehicles?scope=other')->assertUnprocessable()->assertJsonValidationErrors('scope');
+        $this->actingAs($actor)->getJson('/api/vehicles?scope=1')->assertUnprocessable()->assertJsonValidationErrors('scope');
     }
 
     public function test_catalog_requests_are_rate_limited_per_authenticated_user(): void

@@ -43,7 +43,11 @@ final class VehicleUploadReplay
                 'status' => 'processing',
                 'expires_at' => now()->addDay(),
             ]);
-        } catch (QueryException) {
+        } catch (QueryException $exception) {
+            if ((string) $exception->getCode() !== '23505') {
+                throw $exception;
+            }
+
             /** @var VehicleUploadRequest $existing */
             $existing = VehicleUploadRequest::query()
                 ->where('user_id', $user->getKey())

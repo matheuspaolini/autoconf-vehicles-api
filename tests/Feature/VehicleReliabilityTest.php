@@ -2,13 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
 use App\Jobs\CleanupVehicleMedia;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleImage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class VehicleReliabilityTest extends TestCase
@@ -55,6 +58,46 @@ class VehicleReliabilityTest extends TestCase
 
         $this->assertSame($first->json('data'), $replay->json('data'));
         $this->assertSame(1, $vehicle->images()->count());
+    }
+
+    public function test_gallery_capacity_is_enforced_while_the_vehicle_is_locked(): void
+    {
+        Storage::fake('public');
+        $owner = User::factory()->create();
+        $vehicle = Vehicle::factory()->forOwner($owner)->create();
+
+        VehicleImage::factory()->count(20)->for($vehicle)->create();
+
+        try {
+            app(VehicleImageLifecycle::class)->upload($vehicle, $owner, [
+                UploadedFile::fake()->create('overflow.png', 20, 'image/png'),
+            ], $vehicle->lock_version);
+            $this->fail('Expected the gallery capacity check to reject the upload.');
+        } catch (ValidationException) {
+            // The transaction must leave the gallery unchanged.
+        }
+
+        $this->assertSame(20, $vehicle->images()->count());
+        Storage::disk('public')->assertDirectoryEmpty("vehicles/{$vehicle->id}");
+    }
+
+    public function test_gallery_mutations_advance_the_vehicle_etag_once(): void
+    {
+        Storage::fake('public');
+        $owner = User::factory()->create();
+        $vehicle = Vehicle::factory()->forOwner($owner)->create();
+        $first = $vehicle->images()->create(['path' => "vehicles/{$vehicle->id}/first.png", 'is_cover' => true]);
+        $second = $vehicle->images()->create(['path' => "vehicles/{$vehicle->id}/second.png"]);
+
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle))
+            ->patchJson("/api/vehicles/{$vehicle->id}/images/{$second->id}/cover")
+            ->assertOk()
+            ->assertHeader('ETag', "\"vehicle-{$vehicle->id}-v2\"");
+
+        $this->actingAs($owner)->withHeader('If-Match', "\"vehicle-{$vehicle->id}-v2\"")
+            ->deleteJson("/api/vehicles/{$vehicle->id}/images/{$first->id}")
+            ->assertNoContent()
+            ->assertHeader('ETag', "\"vehicle-{$vehicle->id}-v3\"");
     }
 
     public function test_vehicle_deletion_creates_and_dispatches_a_cleanup_task(): void

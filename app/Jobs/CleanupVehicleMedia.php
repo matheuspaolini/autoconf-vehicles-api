@@ -48,6 +48,12 @@ class CleanupVehicleMedia implements ShouldQueue
                 'last_error' => null,
                 'completed_at' => now(),
             ])->save();
+
+            Log::info('Vehicle media cleanup completed', [
+                'cleanup_task_id' => $task->getKey(),
+                'paths' => $task->paths,
+                'directory' => $task->directory,
+            ]);
         } catch (Throwable $exception) {
             $task->forceFill([
                 'attempts' => $task->attempts + 1,
