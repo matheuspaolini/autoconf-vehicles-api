@@ -2,16 +2,23 @@
 
 namespace App\Http\Resources;
 
-use App\Domain\Vehicles\Read\VehicleImageRepresentation;
+use App\Models\VehicleImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
-/** @property-read VehicleImageRepresentation $resource */
+/** @property-read VehicleImage $resource */
 class VehicleImageResource extends JsonResource
 {
-    /** @param VehicleImageRepresentation $resource */
     public function toArray(Request $request): array
     {
-        return $this->resource->toArray();
+        $image = $this->resource;
+
+        return [
+            'id' => $image->getKey(),
+            'url' => url(Storage::disk('public')->url($image->path)),
+            'is_cover' => $image->is_cover,
+            'created_at' => $image->created_at?->toISOString(),
+        ];
     }
 }

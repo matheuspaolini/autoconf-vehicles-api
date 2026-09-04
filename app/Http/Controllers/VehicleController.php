@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\DeleteVehicle;
 use App\Domain\Vehicles\Read\VehicleCatalogGrammar;
-use App\Domain\Vehicles\Read\VehicleRepresentationRead;
+use App\Domain\Vehicles\Read\VehicleRead;
 use App\Domain\Vehicles\VehicleVersion;
 use App\Http\Requests\StoreVehicleRequest;
 use App\Http\Requests\UpdateVehicleRequest;
@@ -28,7 +28,7 @@ class VehicleController extends Controller
     public function index(
         VehicleIndexRequest $request,
         VehicleCatalogGrammar $catalogGrammar,
-        VehicleRepresentationRead $vehicleRead,
+        VehicleRead $vehicleRead,
     ): AnonymousResourceCollection {
         /** @var User $actor */
         $actor = $request->user();
@@ -43,7 +43,7 @@ class VehicleController extends Controller
         type: 'string',
     )]
     #[Response(429, 'Too many API requests.')]
-    public function store(StoreVehicleRequest $request, VehicleRepresentationRead $vehicleRead, VehicleVersion $version): JsonResponse
+    public function store(StoreVehicleRequest $request, VehicleRead $vehicleRead, VehicleVersion $version): JsonResponse
     {
         /** @var User $actor */
         $actor = $request->user();
@@ -53,21 +53,19 @@ class VehicleController extends Controller
         $vehicle->updated_by = $actor->id;
         $vehicle->save();
 
-        $detail = $vehicleRead->detail((int) $vehicle->getKey(), $actor);
+        $detail = $vehicleRead->detail((int) $vehicle->getKey());
 
-        return VehicleDetailResource::make($detail)->response()->setStatusCode(201)->header('ETag', $version->etagFor($detail->vehicle->id, $detail->vehicle->lockVersion));
+        return VehicleDetailResource::make($detail)->response()->setStatusCode(201)->header('ETag', $version->etag($detail));
     }
 
     #[Response(429, 'Too many API requests.')]
-    public function show(Request $request, Vehicle $vehicle, VehicleRepresentationRead $vehicleRead, VehicleVersion $version): JsonResponse
+    public function show(Request $request, Vehicle $vehicle, VehicleRead $vehicleRead, VehicleVersion $version): JsonResponse
     {
         $this->authorize('view', $vehicle);
 
-        /** @var User $actor */
-        $actor = $request->user();
-        $detail = $vehicleRead->detail((int) $vehicle->getKey(), $actor);
+        $detail = $vehicleRead->detail((int) $vehicle->getKey());
 
-        return VehicleDetailResource::make($detail)->response()->header('ETag', $version->etagFor($detail->vehicle->id, $detail->vehicle->lockVersion));
+        return VehicleDetailResource::make($detail)->response()->header('ETag', $version->etag($detail));
     }
 
     #[HeaderParameter(
@@ -83,7 +81,7 @@ class VehicleController extends Controller
         type: 'string',
     )]
     #[Response(429, 'Too many API requests.')]
-    public function update(UpdateVehicleRequest $request, Vehicle $vehicle, VehicleRepresentationRead $vehicleRead, VehicleVersion $version): JsonResponse
+    public function update(UpdateVehicleRequest $request, Vehicle $vehicle, VehicleRead $vehicleRead, VehicleVersion $version): JsonResponse
     {
         $expectedVersion = $version->expectedVersion($request, $vehicle);
         $updated = Vehicle::query()
@@ -100,11 +98,9 @@ class VehicleController extends Controller
             abort(412, 'The Vehicle version is no longer current.');
         }
 
-        /** @var User $actor */
-        $actor = $request->user();
-        $detail = $vehicleRead->detail((int) $vehicle->getKey(), $actor);
+        $detail = $vehicleRead->detail((int) $vehicle->getKey());
 
-        return VehicleDetailResource::make($detail)->response()->header('ETag', $version->etagFor($detail->vehicle->id, $detail->vehicle->lockVersion));
+        return VehicleDetailResource::make($detail)->response()->header('ETag', $version->etag($detail));
     }
 
     #[HeaderParameter(

@@ -2,29 +2,28 @@
 
 namespace App\Http\Resources;
 
-use App\Domain\Vehicles\Read\VehicleListRepresentation;
 use App\Enums\FuelType;
 use App\Enums\Transmission;
 use App\Models\Vehicle;
+use App\Models\VehicleImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Vehicle */
+/** @property-read Vehicle $resource */
 class VehicleListResource extends JsonResource
 {
-    /** @param VehicleListRepresentation $resource */
     public function toArray(Request $request): array
     {
         $vehicle = $this->resource;
 
         return [
-            'id' => $vehicle->id,
+            'id' => $vehicle->getKey(),
             'placa' => $vehicle->placa,
             'chassi' => $vehicle->chassi,
             'marca' => $vehicle->marca,
             'modelo' => $vehicle->modelo,
             'versao' => $vehicle->versao,
-            'valor_venda' => $vehicle->valorVenda,
+            'valor_venda' => \number_format((float) $vehicle->valor_venda, 2, '.', ''),
             'cor' => $vehicle->cor,
             'km' => $vehicle->km,
             'cambio' => match ($vehicle->cambio) {
@@ -39,15 +38,15 @@ class VehicleListResource extends JsonResource
                 FuelType::Hybrid => 'hibrido',
                 FuelType::Electric => 'eletrico',
             },
-            'owner' => ['id' => $vehicle->ownerId, 'name' => $vehicle->ownerName],
-            'cover_image' => $vehicle->coverImage?->toArray(),
+            'owner' => ['id' => $vehicle->owner->getKey(), 'name' => $vehicle->owner->name],
+            'cover_image' => $vehicle->coverImage instanceof VehicleImage ? VehicleImageResource::make($vehicle->coverImage)->toArray($request) : null,
             'permissions' => [
-                'update' => $vehicle->canUpdate,
-                'delete' => $vehicle->canDelete,
-                'manage_images' => $vehicle->canManageImages,
+                'update' => $request->user()?->can('update', $vehicle) ?? false,
+                'delete' => $request->user()?->can('delete', $vehicle) ?? false,
+                'manage_images' => $request->user()?->can('manageImages', $vehicle) ?? false,
             ],
-            'created_at' => $vehicle->createdAt,
-            'updated_at' => $vehicle->updatedAt,
+            'created_at' => $vehicle->created_at?->toISOString(),
+            'updated_at' => $vehicle->updated_at?->toISOString(),
         ];
     }
 }

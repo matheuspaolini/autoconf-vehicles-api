@@ -3,9 +3,7 @@
 namespace Tests\Feature\Queries;
 
 use App\Domain\Vehicles\Read\VehicleCatalogGrammar;
-use App\Domain\Vehicles\Read\VehicleDetailRepresentation;
-use App\Domain\Vehicles\Read\VehicleListRepresentation;
-use App\Domain\Vehicles\Read\VehicleRepresentationRead;
+use App\Domain\Vehicles\Read\VehicleRead;
 use App\Http\Resources\VehicleDetailResource;
 use App\Http\Resources\VehicleListResource;
 use App\Models\User;
@@ -28,11 +26,11 @@ class VehicleReadTest extends TestCase
         VehicleImage::factory()->for($vehicle)->cover()->create();
 
         $criteria = app(VehicleCatalogGrammar::class)->criteria([]);
-        $listed = app(VehicleRepresentationRead::class)->catalog($criteria, $owner)->getCollection()->first();
+        $listed = app(VehicleRead::class)->catalog($criteria, $owner)->getCollection()->first();
 
-        $this->assertInstanceOf(VehicleListRepresentation::class, $listed);
+        $this->assertInstanceOf(Vehicle::class, $listed);
         $this->assertSame($vehicle->id, $listed->id);
-        $this->assertSame($owner->id, $listed->ownerId);
+        $this->assertSame($owner->id, $listed->owner->id);
         $this->assertResourceDoesNotQuery(fn () => VehicleListResource::make($listed)->resolve($this->requestFor($owner)));
     }
 
@@ -45,13 +43,13 @@ class VehicleReadTest extends TestCase
 
         Vehicle::query()->whereKey($vehicle)->update(['marca' => 'Ford']);
 
-        $detail = app(VehicleRepresentationRead::class)->detail((int) $vehicle->getKey(), $owner);
+        $detail = app(VehicleRead::class)->detail((int) $vehicle->getKey());
 
-        $this->assertInstanceOf(VehicleDetailRepresentation::class, $detail);
-        $this->assertSame('Ford', $detail->vehicle->marca);
-        $this->assertNotSame($stale->marca, $detail->vehicle->marca);
-        $this->assertSame($owner->id, $detail->audit->createdById);
-        $this->assertSame($owner->id, $detail->audit->updatedById);
+        $this->assertInstanceOf(Vehicle::class, $detail);
+        $this->assertSame('Ford', $detail->marca);
+        $this->assertNotSame($stale->marca, $detail->marca);
+        $this->assertSame($owner->id, $detail->creator->id);
+        $this->assertSame($owner->id, $detail->updater->id);
         $this->assertResourceDoesNotQuery(fn () => VehicleDetailResource::make($detail)->resolve($this->requestFor($owner)));
     }
 
@@ -59,7 +57,7 @@ class VehicleReadTest extends TestCase
     {
         $this->expectException(ModelNotFoundException::class);
 
-        app(VehicleRepresentationRead::class)->detail(999, User::factory()->create());
+        app(VehicleRead::class)->detail(999);
     }
 
     private function assertResourceDoesNotQuery(callable $resolve): void

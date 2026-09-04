@@ -12,6 +12,20 @@ Uses the default canonical triage labels. See `docs/agents/triage-labels.md`.
 
 Uses a single-context domain-doc layout. See `docs/agents/domain.md`.
 
+### Vehicle reliability
+
+Before changing Vehicle Gallery mutations, ETags, upload replay, or media
+cleanup, read `CONTEXT.md` and `docs/adr/0002-use-postgresql-for-vehicle-concurrency.md`.
+Preserve the documented PostgreSQL locking, strong ETag, idempotency, and
+after-commit cleanup contracts; extend their feature tests with the change.
+
+### Verification
+
+CI runs formatting, OpenAPI analysis, and the full PostgreSQL-backed test suite
+on PHP 8.2–8.4. For application changes, run the closest available subset plus
+`vendor/bin/pint --test`; report any unavailable Docker/PostgreSQL dependency
+instead of changing the application to bypass it.
+
 ## PHP static-analysis hygiene
 
 When writing or refactoring namespaced code in `app/`:

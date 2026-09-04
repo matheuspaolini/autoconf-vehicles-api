@@ -8,7 +8,7 @@ use App\Models\VehicleImage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class VehicleDetailRepresentationTest extends TestCase
+class VehicleDetailResourceTest extends TestCase
 {
     use RefreshDatabase;
 
