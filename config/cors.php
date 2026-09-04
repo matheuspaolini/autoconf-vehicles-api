@@ -6,7 +6,7 @@ return [
     'allowed_origins' => [env('FRONTEND_URL')],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
-    'exposed_headers' => ['X-Request-Id'],
+    'exposed_headers' => ['ETag', 'X-Request-Id'],
     'max_age' => 0,
     'supports_credentials' => true,
 ];

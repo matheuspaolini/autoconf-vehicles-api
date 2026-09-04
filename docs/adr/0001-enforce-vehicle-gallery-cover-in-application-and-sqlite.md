@@ -1,5 +1,7 @@
 # ADR 0001: Enforce Vehicle Gallery cover in application and SQLite
 
+> Superseded by ADR-0002.
+
 ## Context
 
 SQLite cannot express the requirement that a non-empty Vehicle Gallery has at

@@ -16,6 +16,10 @@ class Vehicle extends Model
     /** @use HasFactory<VehicleFactory> */
     use HasFactory;
 
+    protected $attributes = [
+        'lock_version' => 1,
+    ];
+
     protected $fillable = [
         'placa', 'chassi', 'marca', 'modelo', 'versao', 'valor_venda', 'cor', 'km', 'cambio', 'combustivel',
     ];
@@ -25,6 +29,7 @@ class Vehicle extends Model
         return [
             'valor_venda' => 'decimal:2',
             'km' => 'integer',
+            'lock_version' => 'integer',
             'cambio' => Transmission::class,
             'combustivel' => FuelType::class,
         ];

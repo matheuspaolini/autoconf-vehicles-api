@@ -56,7 +56,7 @@ class OpenApiDocumentationTest extends TestCase
         $this->assertSame('integer', $listSchema['properties']['km']['type']);
         $this->assertSame('string', $listSchema['properties']['valor_venda']['type']);
         $this->assertSame(['manual', 'automatico'], $listSchema['properties']['cambio']['enum']);
-        $this->assertArrayHasKey('images', $detailSchema['properties']);
+        $this->assertArrayNotHasKey('images', $detailSchema['properties']);
         $this->assertArrayHasKey('audit', $detailSchema['properties']);
         $this->assertArrayHasKey('links', $listResponse['properties']);
         $this->assertArrayHasKey('meta', $listResponse['properties']);

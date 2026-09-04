@@ -9,58 +9,15 @@ return new class extends Migration
 
     public function up(): void
     {
-        $this->ensureSqlite();
-        $this->repairLegacyGalleries();
-
         DB::statement(
             'CREATE UNIQUE INDEX '.self::COVER_INDEX.'
              ON vehicle_images (vehicle_id)
-             WHERE is_cover = 1'
+             WHERE is_cover'
         );
     }
 
     public function down(): void
     {
-        $this->ensureSqlite();
-
         DB::statement('DROP INDEX IF EXISTS '.self::COVER_INDEX);
-    }
-
-    private function ensureSqlite(): void
-    {
-        if (DB::connection()->getDriverName() !== 'sqlite') {
-            throw new RuntimeException('The vehicle gallery cover invariant requires SQLite.');
-        }
-    }
-
-    private function repairLegacyGalleries(): void
-    {
-        $vehicleIds = DB::table('vehicle_images')
-            ->select('vehicle_id')
-            ->groupBy('vehicle_id')
-            ->orderBy('vehicle_id')
-            ->pluck('vehicle_id');
-
-        foreach ($vehicleIds as $vehicleId) {
-            $imageIds = DB::table('vehicle_images')
-                ->where('vehicle_id', $vehicleId)
-                ->orderBy('id')
-                ->pluck('id');
-
-            if (DB::table('vehicle_images')
-                ->where('vehicle_id', $vehicleId)
-                ->where('is_cover', true)
-                ->count() === 1) {
-                continue;
-            }
-
-            DB::table('vehicle_images')
-                ->where('vehicle_id', $vehicleId)
-                ->update(['is_cover' => false]);
-
-            DB::table('vehicle_images')
-                ->where('id', $imageIds->first())
-                ->update(['is_cover' => true]);
-        }
     }
 };

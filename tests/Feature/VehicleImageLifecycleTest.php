@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -26,7 +25,7 @@ class VehicleImageLifecycleTest extends TestCase
         $first = $this->image($vehicle, 'one.png', true);
         $second = $this->image($vehicle, 'two.png');
 
-        $this->actingAs($owner)
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle))
             ->patchJson("/api/vehicles/{$vehicle->id}/images/{$second->id}/cover")
             ->assertOk()
             ->assertJsonPath('data.id', $second->id);
@@ -45,7 +44,7 @@ class VehicleImageLifecycleTest extends TestCase
         $created = app(VehicleImageLifecycle::class)->upload($vehicle, $owner, [
             UploadedFile::fake()->create('one.png', 20, 'image/png'),
             UploadedFile::fake()->create('two.png', 20, 'image/png'),
-        ]);
+        ], $vehicle->lock_version);
 
         $this->assertCount(2, $created);
         $this->assertTrue($created->first()->is_cover);
@@ -62,11 +61,11 @@ class VehicleImageLifecycleTest extends TestCase
         $first = $this->image($vehicle, 'one.png', true);
         $second = $this->image($vehicle, 'two.png');
 
-        $this->actingAs($owner)
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle))
             ->patchJson("/api/vehicles/{$vehicle->id}/images/{$second->id}/cover")
             ->assertOk();
 
-        $this->actingAs($owner)
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle->refresh()))
             ->deleteJson("/api/vehicles/{$vehicle->id}/images/{$second->id}")
             ->assertNoContent();
 
@@ -81,7 +80,7 @@ class VehicleImageLifecycleTest extends TestCase
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         $image = $this->image($vehicle, 'only.png', true);
 
-        app(VehicleImageLifecycle::class)->delete($vehicle, $image, $owner);
+        app(VehicleImageLifecycle::class)->delete($vehicle, $image, $owner, $vehicle->lock_version);
 
         $this->assertValidGallery($vehicle);
         $this->assertDatabaseMissing('vehicle_images', ['id' => $image->id]);
@@ -95,7 +94,7 @@ class VehicleImageLifecycleTest extends TestCase
         $otherVehicle = Vehicle::factory()->forOwner($owner)->create();
         $image = $this->image($vehicle, 'only.png', true);
 
-        $this->actingAs($owner)
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($otherVehicle))
             ->patchJson("/api/vehicles/{$otherVehicle->id}/images/{$image->id}/cover")
             ->assertNotFound();
     }
@@ -110,7 +109,7 @@ class VehicleImageLifecycleTest extends TestCase
         $otherCover = $this->image($otherVehicle, 'other-cover.png', true);
 
         try {
-            app(VehicleImageLifecycle::class)->setCover($vehicle, $otherCover, $owner);
+            app(VehicleImageLifecycle::class)->setCover($vehicle, $otherCover, $owner, $vehicle->lock_version);
             $this->fail('Expected an image from another vehicle to be rejected.');
         } catch (ModelNotFoundException) {
             // The Action must fail before clearing either vehicle's cover.
@@ -129,7 +128,7 @@ class VehicleImageLifecycleTest extends TestCase
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         $image = $this->image($vehicle, 'only.png', true);
 
-        $this->actingAs($owner)
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle))
             ->deleteJson("/api/vehicles/{$vehicle->id}")
             ->assertNoContent();
 
@@ -192,53 +191,12 @@ class VehicleImageLifecycleTest extends TestCase
         VehicleImage::factory()->for($vehicle)->cover()->create();
     }
 
-    public function test_migration_repairs_a_gallery_without_a_cover(): void
-    {
-        $vehicle = Vehicle::factory()->create();
-        $this->repairLegacyGallery($vehicle, [false, false]);
-
-        $this->assertSame(
-            [true, false],
-            $vehicle->images()->orderBy('id')->pluck('is_cover')->map(fn (int $cover): bool => (bool) $cover)->all(),
-        );
-    }
-
-    public function test_migration_repairs_multiple_covers_using_the_oldest_image(): void
-    {
-        $vehicle = Vehicle::factory()->create();
-        $this->repairLegacyGallery($vehicle, [true, true, false]);
-
-        $this->assertSame(
-            [true, false, false],
-            $vehicle->images()->orderBy('id')->pluck('is_cover')->map(fn (int $cover): bool => (bool) $cover)->all(),
-        );
-    }
-
     private function assertValidGallery(Vehicle $vehicle): void
     {
         $imageCount = $vehicle->images()->count();
         $coverCount = $vehicle->images()->where('is_cover', true)->count();
 
         $this->assertSame($imageCount === 0 ? 0 : 1, $coverCount);
-    }
-
-    /**
-     * @param  list<bool>  $covers
-     */
-    private function repairLegacyGallery(Vehicle $vehicle, array $covers): void
-    {
-        $migration = require database_path('migrations/2026_09_04_000003_enforce_one_cover_per_vehicle.php');
-        $migration->down();
-
-        foreach ($covers as $index => $cover) {
-            DB::table('vehicle_images')->insert([
-                'vehicle_id' => $vehicle->id,
-                'path' => "vehicles/{$vehicle->id}/legacy-{$index}.png",
-                'is_cover' => $cover,
-            ]);
-        }
-
-        $migration->up();
     }
 
     private function image(Vehicle $vehicle, string $name, bool $cover = false): VehicleImage
@@ -253,5 +211,10 @@ class VehicleImageLifecycleTest extends TestCase
         }
 
         return $image;
+    }
+
+    private function etag(Vehicle $vehicle): string
+    {
+        return "\"vehicle-{$vehicle->id}-v{$vehicle->lock_version}\"";
     }
 }

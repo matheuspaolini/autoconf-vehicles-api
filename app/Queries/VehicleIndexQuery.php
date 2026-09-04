@@ -2,17 +2,24 @@
 
 namespace App\Queries;
 
-use App\Models\Vehicle;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
-class VehicleIndexQuery
+final class VehicleIndexQuery
 {
     private const SORTABLE_COLUMNS = ['km' => 'km', 'valor_venda' => 'valor_venda'];
 
-    public function paginate(array $filters): LengthAwarePaginator
+    public function __construct(
+        private readonly VehicleRead $vehicleRead,
+    ) {}
+
+    public function paginate(array $filters, User $actor): LengthAwarePaginator
     {
-        $query = Vehicle::query()->with(['owner', 'coverImage']);
+        $query = $this->vehicleRead->forCatalog();
+        if (($filters['scope'] ?? null) === 'mine') {
+            $query->whereBelongsTo($actor, 'owner');
+        }
         foreach (['marca', 'modelo', 'placa'] as $field) {
             if (filled($filters[$field] ?? null)) {
                 $this->like($query, $field, $filters[$field]);

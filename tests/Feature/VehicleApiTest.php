@@ -77,8 +77,8 @@ class VehicleApiTest extends TestCase
         $stranger = User::factory()->create();
         $admin = User::factory()->admin()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
-        $this->actingAs($stranger)->patchJson("/api/vehicles/{$vehicle->id}", $this->payload())->assertForbidden();
-        $this->actingAs($admin)->patchJson("/api/vehicles/{$vehicle->id}", $this->payload())->assertOk();
+        $this->actingAs($stranger)->withHeader('If-Match', $this->etag($vehicle))->patchJson("/api/vehicles/{$vehicle->id}", $this->payload())->assertForbidden();
+        $this->actingAs($admin)->withHeader('If-Match', $this->etag($vehicle))->patchJson("/api/vehicles/{$vehicle->id}", $this->payload())->assertOk();
     }
 
     public function test_first_uploaded_image_becomes_cover_and_its_file_is_stored(): void
@@ -86,15 +86,32 @@ class VehicleApiTest extends TestCase
         Storage::fake('public');
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
-        $this->actingAs($owner)->post("/api/vehicles/{$vehicle->id}/images", ['files' => [UploadedFile::fake()->createWithContent('car.png', file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')))]])->assertCreated();
+        $this->actingAs($owner)
+            ->withHeaders(['If-Match' => $this->etag($vehicle), 'Idempotency-Key' => (string) str()->uuid()])
+            ->post("/api/vehicles/{$vehicle->id}/images", ['files' => [UploadedFile::fake()->createWithContent('car.png', file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')))]])
+            ->assertCreated();
         $image = $vehicle->images()->firstOrFail();
         $this->assertTrue($image->is_cover);
         Storage::disk('public')->assertExists($image->path);
+    }
+
+    public function test_public_vehicle_images_are_served_without_a_signature(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('vehicles/10/placeholder.png', 'image-content');
+
+        $this->get('/storage/vehicles/10/placeholder.png')
+            ->assertOk();
     }
 
     /** @return array<string, mixed> */
     private function payload(): array
     {
         return ['placa' => 'abc1d23', 'chassi' => '9BWZZZ377VT004251', 'marca' => 'Chevrolet', 'modelo' => 'Onix', 'versao' => 'LT', 'valor_venda' => '78900.00', 'cor' => 'Prata', 'km' => 100, 'cambio' => 'automatico', 'combustivel' => 'flex'];
+    }
+
+    private function etag(Vehicle $vehicle): string
+    {
+        return "\"vehicle-{$vehicle->id}-v{$vehicle->lock_version}\"";
     }
 }

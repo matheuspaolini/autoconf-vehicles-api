@@ -2,32 +2,36 @@
 
 namespace App\Actions;
 
-use App\Domain\Vehicles\VehicleGallery\PendingVehicleGalleryCleanup;
-use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
+use App\Domain\Vehicles\VehicleVersion;
+use App\Jobs\CleanupVehicleMedia;
+use App\Models\MediaCleanupTask;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
 
 final class DeleteVehicle
 {
-    public function __construct(
-        private readonly VehicleImageLifecycle $imageLifecycle,
-    ) {}
-
-    public function execute(Vehicle $vehicle): void
+    public function execute(Vehicle $vehicle, int $expectedVersion): void
     {
-        $cleanup = DB::transaction(function () use ($vehicle): PendingVehicleGalleryCleanup {
+        $taskId = DB::transaction(function () use ($vehicle, $expectedVersion): int {
             /** @var Vehicle $lockedVehicle */
             $lockedVehicle = Vehicle::query()
                 ->whereKey($vehicle->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $cleanup = $this->imageLifecycle->prepareVehicleDeletion($lockedVehicle);
+            app(VehicleVersion::class)->assertCurrent($lockedVehicle, $expectedVersion);
+
+            $paths = $lockedVehicle->images()->orderBy('id')->pluck('path')->all();
+            $task = MediaCleanupTask::query()->create([
+                'paths' => $paths,
+                'directory' => "vehicles/{$lockedVehicle->getKey()}",
+                'last_dispatched_at' => now(),
+            ]);
             $lockedVehicle->delete();
 
-            return $cleanup;
+            return $task->getKey();
         });
 
-        $cleanup->execute();
+        CleanupVehicleMedia::dispatch($taskId);
     }
 }

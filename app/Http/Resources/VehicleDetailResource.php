@@ -11,7 +11,6 @@ class VehicleDetailResource extends VehicleListResource
     public function toArray(Request $request): array
     {
         return array_merge(parent::toArray($request), [
-            'images' => VehicleImageResource::collection($this->whenLoaded('images')),
             'audit' => [
                 'created_at' => $this->created_at?->toISOString(),
                 'created_by' => [
