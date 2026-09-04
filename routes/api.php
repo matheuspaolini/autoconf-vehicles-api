@@ -18,7 +18,7 @@ Route::prefix('auth')->middleware('web')->group(function (): void {
         Route::get('/me', MeController::class);
     });
 });
-Route::middleware('auth:sanctum')->group(function (): void {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function (): void {
     Route::apiResource('vehicles', VehicleController::class);
     Route::post('/vehicles/{vehicle}/images', UploadVehicleImagesController::class)->middleware('throttle:uploads');
     Route::scopeBindings()->group(function (): void {

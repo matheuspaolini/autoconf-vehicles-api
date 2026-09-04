@@ -40,6 +40,19 @@ class VehicleCatalogTest extends TestCase
         $this->actingAs($actor)->getJson('/api/vehicles?per_page=101')->assertUnprocessable()->assertJsonValidationErrors('per_page');
     }
 
+    public function test_catalog_requests_are_rate_limited_per_authenticated_user(): void
+    {
+        $actor = User::factory()->create();
+
+        $this->actingAs($actor);
+
+        for ($attempt = 0; $attempt < 60; $attempt++) {
+            $this->getJson('/api/vehicles')->assertOk();
+        }
+
+        $this->getJson('/api/vehicles')->assertTooManyRequests();
+    }
+
     public function test_vehicle_values_are_serialized_as_contract_types_and_permissions_are_server_calculated(): void
     {
         $owner = User::factory()->create();

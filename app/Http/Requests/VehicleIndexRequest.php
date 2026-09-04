@@ -3,9 +3,16 @@
 namespace App\Http\Requests;
 
 use App\Models\Vehicle;
+use Dedoc\Scramble\Attributes\QueryParameter;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
+#[QueryParameter(
+    'sort',
+    'Comma-separated sort terms: km or valor_venda. Prefix a term with - for descending order, for example km,-valor_venda.',
+    type: 'string',
+    example: 'km,-valor_venda',
+)]
 class VehicleIndexRequest extends FormRequest
 {
     public function authorize(): bool

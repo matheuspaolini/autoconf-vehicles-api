@@ -1,5 +1,8 @@
 <?php
 
+use Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
+
 return [
     /*
      * Your API path. By default, all routes starting with this path will be added to the docs.
@@ -27,7 +30,7 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => '',
+        'description' => 'This API uses Laravel Sanctum first-party session cookies. Before registration, login, or any unsafe request, call `GET /sanctum/csrf-cookie` and send the value of the `XSRF-TOKEN` cookie as the `X-XSRF-TOKEN` header.',
     ],
 
     /*
@@ -128,4 +131,14 @@ return [
     'middleware' => ['web'],
 
     'extensions' => [],
+
+    'security_strategy' => [
+        MiddlewareAuthSecurityStrategy::class,
+        [
+            'middleware' => ['auth:sanctum'],
+            'scheme' => SecurityScheme::apiKey('cookie', 'laravel_session')
+                ->as('sanctumSession')
+                ->setDescription('Laravel Sanctum first-party session cookie.'),
+        ],
+    ],
 ];

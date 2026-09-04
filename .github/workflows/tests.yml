@@ -43,5 +43,13 @@ jobs:
       - name: Generate app key
         run: php artisan key:generate
 
+      - name: Check code formatting
+        if: matrix.php == '8.2'
+        run: vendor/bin/pint --test
+
+      - name: Analyze OpenAPI documentation
+        if: matrix.php == '8.2'
+        run: php artisan scramble:analyze
+
       - name: Execute tests
-        run: vendor/bin/phpunit
+        run: php artisan test
