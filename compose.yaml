@@ -1,0 +1,99 @@
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  working_dir: /var/www/html
+  environment: &app_environment
+    APP_ENV: local
+    APP_DEBUG: "true"
+    APP_KEY: "${APP_KEY:-base64:4yD0Z0bCzU4ZY3eZCWcxRvEzuYXRE7jLAITCXdEY+iQ=}"
+    APP_URL: "${APP_URL:-http://localhost:8080}"
+    FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
+    SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS:-localhost:5173}"
+    DB_CONNECTION: pgsql
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_DATABASE: "${DB_DATABASE:-autoconf}"
+    DB_USERNAME: "${DB_USERNAME:-autoconf}"
+    DB_PASSWORD: "${DB_PASSWORD:-autoconf}"
+    QUEUE_CONNECTION: database
+    FILESYSTEM_DISK: public
+  volumes:
+    - .:/var/www/html
+    - vendor:/var/www/html/vendor
+    - storage_public:/var/www/html/storage/app/public
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-autoconf}"
+      POSTGRES_USER: "${DB_USERNAME:-autoconf}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-autoconf}"
+    ports:
+      - "127.0.0.1:${HOST_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-test-database.sh:/docker-entrypoint-initdb.d/10-create-test-database.sh:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -q"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  dependencies:
+    <<: *app
+    command: ["/usr/local/bin/ensure-dependencies"]
+    restart: "no"
+
+  migrate:
+    <<: *app
+    command: ["/usr/local/bin/migrate"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dependencies:
+        condition: service_completed_successfully
+
+  api:
+    <<: *app
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8080", "--no-reload"]
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/up"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  queue:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  vendor:
+  storage_public:

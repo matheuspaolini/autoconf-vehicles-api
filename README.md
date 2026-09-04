@@ -2,7 +2,64 @@
 
 Laravel 12 JSON API for the AutoConf Vehicles catalog. It uses Sanctum first-party session cookies; it does not issue bearer tokens.
 
-## Local setup
+## Local setup with Docker
+
+Requirements: Docker Engine and Docker Compose.
+
+From the repository root:
+
+```bash
+docker compose up --build --wait
+```
+
+This starts PostgreSQL, installs PHP dependencies in a Docker volume, applies pending migrations, and starts the API, queue worker, and scheduler. The command returns only after PostgreSQL and the API health endpoint are healthy.
+
+- API: `http://localhost:8080`
+- Health endpoint: `http://localhost:8080/up`
+- OpenAPI UI: `http://localhost:8080/docs/api`
+- PostgreSQL: `127.0.0.1:5432`
+- Frontend development server: `http://localhost:5173`
+
+The API keeps using `localhost:8080`, so the frontend's `VITE_API_BASE_URL=http://localhost:8080` continues to work. Do not mix `localhost` and `127.0.0.1` in browser-facing API or frontend URLs because Sanctum session cookies are host-sensitive.
+
+Compose supplies a fixed, local-only development application key when `APP_KEY` is absent. Do not reuse it outside local development.
+
+The Docker stack creates the schema only; it does not seed demo data. Register a user through the API or frontend, or seed explicitly after the stack is healthy:
+
+```bash
+docker compose exec api php artisan db:seed
+```
+
+Seed accounts: `admin@example.com` / `password` and `user@example.com` / `password`.
+
+Stop containers while retaining database, dependency, and upload data:
+
+```bash
+docker compose down
+```
+
+Remove all local Docker data and start from an empty database:
+
+```bash
+docker compose down --volumes
+```
+
+After changing `composer.lock`, refresh dependencies and restart application processes:
+
+```bash
+docker compose run --rm --no-deps dependencies
+docker compose restart api queue scheduler
+```
+
+After adding a migration while the stack is already running:
+
+```bash
+docker compose run --rm --no-deps migrate
+```
+
+Source code is bind-mounted, so HTTP request changes are visible without rebuilding. Laravel queue workers are long-lived; restart `queue` after changing queued job code.
+
+## Manual local setup
 
 Requirements: PHP 8.2+, Composer, Docker Compose, PostgreSQL PDO (`pdo_pgsql`), mbstring, XML, cURL, fileinfo, and GD/Imagick.
 
@@ -27,8 +84,6 @@ docker compose -f docker/compose.dev.yaml exec -T postgres createdb -U autoconf 
 ```
 
 The default origins are API `http://localhost:8080` and SPA `http://localhost:5173`. If either changes, update `APP_URL`, `FRONTEND_URL`, and `SANCTUM_STATEFUL_DOMAINS`, and pass the matching host and port to `artisan serve`.
-
-Seed accounts: `admin@example.com` / `password` and `user@example.com` / `password`.
 
 ## Authentication and docs
 
