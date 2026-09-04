@@ -10,7 +10,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int $created_by
+ * @property int $updated_by
+ * @property string $placa
+ * @property string $chassi
+ * @property string $marca
+ * @property string $modelo
+ * @property string $versao
+ * @property string $valor_venda
+ * @property string $cor
+ * @property int $km
+ * @property Transmission $cambio
+ * @property FuelType $combustivel
+ * @property int $lock_version
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class Vehicle extends Model
 {
     /** @use HasFactory<VehicleFactory> */

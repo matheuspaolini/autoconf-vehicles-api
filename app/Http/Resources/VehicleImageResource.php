@@ -15,7 +15,7 @@ class VehicleImageResource extends JsonResource
         $image = $this->resource;
 
         return [
-            'id' => $image->getKey(),
+            'id' => $image->id,
             'url' => url(Storage::disk('public')->url($image->path)),
             'is_cover' => $image->is_cover,
             'created_at' => $image->created_at?->toISOString(),

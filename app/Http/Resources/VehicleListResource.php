@@ -17,7 +17,7 @@ class VehicleListResource extends JsonResource
         $vehicle = $this->resource;
 
         return [
-            'id' => $vehicle->getKey(),
+            'id' => $vehicle->id,
             'placa' => $vehicle->placa,
             'chassi' => $vehicle->chassi,
             'marca' => $vehicle->marca,

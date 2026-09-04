@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleImage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class VehicleRead
 {
@@ -32,7 +33,15 @@ final class VehicleRead
     {
         /** @var Vehicle $vehicle */
         $vehicle = Vehicle::query()
-            ->with(['owner', 'creator', 'updater', 'coverImage'])
+            ->with([
+                'owner',
+                'creator',
+                'updater',
+                'coverImage',
+                'images' => static fn (HasMany $images): HasMany => $images
+                    ->orderByDesc('is_cover')
+                    ->orderBy('id'),
+            ])
             ->findOrFail($vehicleId);
 
         return $vehicle;

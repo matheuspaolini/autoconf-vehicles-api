@@ -12,6 +12,7 @@ use Dedoc\Scramble\Attributes\Endpoint;
 use Dedoc\Scramble\Attributes\Header;
 use Dedoc\Scramble\Attributes\HeaderParameter;
 use Dedoc\Scramble\Attributes\Response;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -69,20 +70,24 @@ class UploadVehicleImagesController extends Controller
         }
 
         try {
-            $images = $lifecycle->upload(
+            /** @var array<string, mixed> $body */
+            $body = [];
+            $etag = '';
+
+            $lifecycle->upload(
                 $vehicle,
                 $request->user(),
                 $files,
                 $version->expectedVersion($request, $vehicle),
+                function (Collection $images, Vehicle $lockedVehicle) use (&$body, &$etag, $claim, $replay, $version): void {
+                    $etag = $version->etag($lockedVehicle);
+                    /** @var array<string, mixed> $body */
+                    $body = VehicleImageResource::collection($images)->response()->getData(true);
+                    $replay->complete($claim, $body, 201, $etag);
+                },
             );
-            $currentVehicle = Vehicle::query()->findOrFail($vehicle->getKey());
-            $etag = $version->etag($currentVehicle);
-            $response = VehicleImageResource::collection($images)->response()->setStatusCode(201)->header('ETag', $etag);
-            /** @var array<string, mixed> $body */
-            $body = $response->getData(true);
-            $replay->complete($claim, $body, 201, $etag);
 
-            return $response;
+            return response()->json($body, 201)->header('ETag', $etag);
         } catch (Throwable $exception) {
             $replay->abandon($claim);
 

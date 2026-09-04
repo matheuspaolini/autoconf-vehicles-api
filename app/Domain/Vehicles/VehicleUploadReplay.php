@@ -87,8 +87,9 @@ final class VehicleUploadReplay
 
     public function abandon(VehicleUploadRequest $request): void
     {
-        if ($request->status === 'processing') {
-            $request->delete();
-        }
+        VehicleUploadRequest::query()
+            ->whereKey($request->getKey())
+            ->where('status', 'processing')
+            ->delete();
     }
 }

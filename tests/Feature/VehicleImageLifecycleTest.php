@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
+use App\Jobs\CleanupVehicleMedia;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleImage;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -56,6 +58,7 @@ class VehicleImageLifecycleTest extends TestCase
     public function test_deleting_a_cover_promotes_the_oldest_remaining_image(): void
     {
         Storage::fake('public');
+        Queue::fake();
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         $first = $this->image($vehicle, 'one.png', true);
@@ -70,6 +73,7 @@ class VehicleImageLifecycleTest extends TestCase
             ->assertNoContent();
 
         $this->assertTrue($first->refresh()->is_cover);
+        $this->dispatchedCleanupJob()->handle();
         Storage::disk('public')->assertMissing($second->path);
     }
 
@@ -123,6 +127,7 @@ class VehicleImageLifecycleTest extends TestCase
     public function test_vehicle_deletion_cleans_its_image_storage_and_records(): void
     {
         Storage::fake('public');
+        Queue::fake();
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         $image = $this->image($vehicle, 'only.png', true);
@@ -131,6 +136,7 @@ class VehicleImageLifecycleTest extends TestCase
             ->deleteJson("/api/vehicles/{$vehicle->id}")
             ->assertNoContent();
 
+        $this->dispatchedCleanupJob()->handle();
         Storage::disk('public')->assertMissing($image->path);
         $this->assertDatabaseMissing('vehicles', ['id' => $vehicle->id]);
         $this->assertDatabaseMissing('vehicle_images', ['id' => $image->id]);
@@ -201,7 +207,7 @@ class VehicleImageLifecycleTest extends TestCase
     private function image(Vehicle $vehicle, string $name, bool $cover = false): VehicleImage
     {
         $path = "vehicles/{$vehicle->id}/{$name}";
-        Storage::disk('public')->put($path, file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')));
+        Storage::disk('public')->put($path, \file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')));
 
         $image = $vehicle->images()->create(['path' => $path]);
 
@@ -215,5 +221,23 @@ class VehicleImageLifecycleTest extends TestCase
     private function etag(Vehicle $vehicle): string
     {
         return "\"vehicle-{$vehicle->id}-v{$vehicle->lock_version}\"";
+    }
+
+    private function dispatchedCleanupJob(): CleanupVehicleMedia
+    {
+        /** @var CleanupVehicleMedia|null $job */
+        $job = null;
+
+        Queue::assertPushed(CleanupVehicleMedia::class, function (CleanupVehicleMedia $candidate) use (&$job): bool {
+            $job = $candidate;
+
+            return true;
+        });
+
+        if (! ($job instanceof CleanupVehicleMedia)) {
+            $this->fail('Expected a media cleanup job to be dispatched.');
+        }
+
+        return $job;
     }
 }

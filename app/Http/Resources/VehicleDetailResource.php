@@ -15,6 +15,7 @@ class VehicleDetailResource extends JsonResource
 
         return [
             ...(new VehicleListResource($vehicle))->toArray($request),
+            'images' => VehicleImageResource::collection($vehicle->images),
             'audit' => [
                 'created_at' => $vehicle->created_at?->toISOString(),
                 'created_by' => ['id' => $vehicle->creator->getKey(), 'name' => $vehicle->creator->name],

@@ -15,6 +15,6 @@ ETag.
 
 ## Consequences
 
-- Local development, CI, and production require PostgreSQL and `pdo_pgsql`.
+- Local development and CI require PostgreSQL and `pdo_pgsql`.
 - ADR-0001 is superseded.
 - Every mutation of an existing Vehicle requires a current `If-Match` ETag.

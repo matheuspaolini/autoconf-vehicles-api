@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Domain\Vehicles\VehicleMediaRetirement;
 use App\Jobs\CleanupVehicleMedia;
 use App\Models\MediaCleanupTask;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -76,5 +78,27 @@ class VehicleMediaRetirementTest extends TestCase
         } finally {
             Carbon::setTestNow();
         }
+    }
+
+    public function test_reconciliation_removes_only_old_unreferenced_public_media(): void
+    {
+        Storage::fake('public');
+        $disk = Storage::disk('public');
+        $vehicle = Vehicle::factory()->create();
+        $referenced = "vehicles/{$vehicle->id}/referenced.png";
+        $oldOrphan = "vehicles/{$vehicle->id}/old-orphan.png";
+        $recentOrphan = "vehicles/{$vehicle->id}/recent-orphan.png";
+
+        $disk->put($referenced, 'referenced');
+        $disk->put($oldOrphan, 'old orphan');
+        $disk->put($recentOrphan, 'recent orphan');
+        $vehicle->images()->create(['path' => $referenced]);
+        \touch($disk->path($oldOrphan), now()->subHour()->subSecond()->getTimestamp());
+
+        app(VehicleMediaRetirement::class)->reconcile();
+
+        $disk->assertExists($referenced);
+        $disk->assertMissing($oldOrphan);
+        $disk->assertExists($recentOrphan);
     }
 }

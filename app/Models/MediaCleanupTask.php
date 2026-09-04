@@ -3,7 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property list<string> $paths
+ * @property string|null $directory
+ * @property int $attempts
+ * @property string|null $last_error
+ * @property Carbon|null $last_dispatched_at
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class MediaCleanupTask extends Model
 {
     protected $fillable = [

@@ -34,11 +34,11 @@ class VehicleReadTest extends TestCase
         $this->assertResourceDoesNotQuery(fn () => VehicleListResource::make($listed)->resolve($this->requestFor($owner)));
     }
 
-    public function test_detail_returns_a_fresh_vehicle_without_loading_the_gallery(): void
+    public function test_detail_returns_a_fresh_vehicle_with_its_ordered_gallery(): void
     {
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
-        VehicleImage::factory()->for($vehicle)->cover()->create();
+        $cover = VehicleImage::factory()->for($vehicle)->cover()->create();
         $stale = Vehicle::query()->findOrFail($vehicle->getKey());
 
         Vehicle::query()->whereKey($vehicle)->update(['marca' => 'Ford']);
@@ -50,6 +50,8 @@ class VehicleReadTest extends TestCase
         $this->assertNotSame($stale->marca, $detail->marca);
         $this->assertSame($owner->id, $detail->creator->id);
         $this->assertSame($owner->id, $detail->updater->id);
+        $this->assertTrue($detail->relationLoaded('images'));
+        $this->assertSame([$cover->id], $detail->images->modelKeys());
         $this->assertResourceDoesNotQuery(fn () => VehicleDetailResource::make($detail)->resolve($this->requestFor($owner)));
     }
 

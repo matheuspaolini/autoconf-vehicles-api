@@ -36,14 +36,14 @@ final class VehicleCatalogGrammar
     public function validationRules(): array
     {
         return [
-            'q' => ['nullable', 'string', 'max:' . self::MAX_QUERY_TEXT_LENGTH],
-            'marca' => ['nullable', 'string', 'max:' . self::MAX_QUERY_TEXT_LENGTH],
-            'modelo' => ['nullable', 'string', 'max:' . self::MAX_QUERY_TEXT_LENGTH],
-            'placa' => ['nullable', 'string', 'max:' . self::MAX_PLATE_LENGTH],
-            'sort' => ['nullable', 'string', 'max:' . self::MAX_QUERY_TEXT_LENGTH, $this->sortValidationRule()],
+            'q' => ['nullable', 'string', 'max:'.self::MAX_QUERY_TEXT_LENGTH],
+            'marca' => ['nullable', 'string', 'max:'.self::MAX_QUERY_TEXT_LENGTH],
+            'modelo' => ['nullable', 'string', 'max:'.self::MAX_QUERY_TEXT_LENGTH],
+            'placa' => ['nullable', 'string', 'max:'.self::MAX_PLATE_LENGTH],
+            'sort' => ['nullable', 'string', 'max:'.self::MAX_QUERY_TEXT_LENGTH, $this->sortValidationRule()],
             'scope' => ['nullable', Rule::in([self::MINE_SCOPE])],
-            'page' => ['nullable', 'integer', 'min:' . self::MIN_PAGE],
-            'per_page' => ['nullable', 'integer', 'min:' . self::MIN_PAGE, 'max:' . self::MAX_PER_PAGE],
+            'page' => ['nullable', 'integer', 'min:'.self::MIN_PAGE],
+            'per_page' => ['nullable', 'integer', 'min:'.self::MIN_PAGE, 'max:'.self::MAX_PER_PAGE],
         ];
     }
 
@@ -71,7 +71,7 @@ final class VehicleCatalogGrammar
     {
         $vehicles->when(
             $criteria->isMine,
-            static fn(Builder $query): Builder => $query->whereBelongsTo($viewer, 'owner'),
+            static fn (Builder $query): Builder => $query->whereBelongsTo($viewer, 'owner'),
         );
 
         foreach (self::FILTER_FIELDS as $field) {
@@ -79,13 +79,13 @@ final class VehicleCatalogGrammar
 
             $vehicles->when(
                 filled($filter),
-                fn(Builder $query): Builder => $this->applyLikeFilter($query, $field, (string) $filter),
+                fn (Builder $query): Builder => $this->applyLikeFilter($query, $field, (string) $filter),
             );
         }
 
         $vehicles->when(
             filled($criteria->search),
-            fn(Builder $query): Builder => $this->applySearch($query, (string) $criteria->search),
+            fn (Builder $query): Builder => $this->applySearch($query, (string) $criteria->search),
         );
 
         if ($criteria->sortTerms === []) {
@@ -107,7 +107,7 @@ final class VehicleCatalogGrammar
             foreach ($this->sortTerms((string) $value) as $term) {
                 $sortName = \ltrim($term, self::DESCENDING_PREFIX);
 
-                if (!\array_key_exists($sortName, self::SORTABLE_COLUMNS)) {
+                if (! \array_key_exists($sortName, self::SORTABLE_COLUMNS)) {
                     $fail('The selected sort field is invalid.');
 
                     return;
@@ -127,14 +127,14 @@ final class VehicleCatalogGrammar
     {
         return $vehicles->whereRaw(
             "LOWER({$column}) LIKE ? ESCAPE '\\'",
-            ['%' . \mb_strtolower($this->escapeLike($value)) . '%'],
+            ['%'.\mb_strtolower($this->escapeLike($value)).'%'],
         );
     }
 
     /** @param Builder<Vehicle> $vehicles */
     private function applySearch(Builder $vehicles, string $search): Builder
     {
-        $escapedSearch = '%' . \mb_strtolower($this->escapeLike($search)) . '%';
+        $escapedSearch = '%'.\mb_strtolower($this->escapeLike($search)).'%';
 
         return $vehicles->where(function (Builder $query) use ($escapedSearch): void {
             $query->whereRaw("LOWER(placa) LIKE ? ESCAPE '\\'", [$escapedSearch])

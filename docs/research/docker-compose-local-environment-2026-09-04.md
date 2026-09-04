@@ -10,9 +10,9 @@ The API is a Laravel 12 application configured with a PostgreSQL database queue.
 runtime needs a web process, a `queue:work` process, and a `schedule:work`
 process in addition to PostgreSQL.
 
-The existing `docker/compose.dev.yaml` and `docker/compose.prod.yaml` define
-PostgreSQL only. The root `compose.yaml` is a separate Docker-first local entry
-point; the existing Compose files and the host-PHP workflow remain available.
+The existing `docker/compose.dev.yaml` defines PostgreSQL only. The root
+`compose.yaml` is a separate Docker-first local entry point; the host-PHP
+workflow remains available.
 
 The current `DatabaseSeeder` creates fixed email addresses, so it is not safe to
 run automatically against a persisted database. The Docker migration service

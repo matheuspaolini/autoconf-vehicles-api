@@ -15,7 +15,7 @@ class VehicleApiTest extends TestCase
 
     public function test_registration_creates_a_non_admin_authenticated_user(): void
     {
-        $response = $this->postJson('/api/auth/register', ['name' => 'Ana', 'email' => 'ANA@EXAMPLE.COM', 'password' => 'password1', 'password_confirmation' => 'password1']);
+        $response = $this->withCsrf()->postJson('/api/auth/register', ['name' => 'Ana', 'email' => 'ANA@EXAMPLE.COM', 'password' => 'password1', 'password_confirmation' => 'password1']);
 
         $response->assertCreated()->assertJsonPath('data.email', 'ana@example.com')->assertJsonPath('data.is_admin', false);
         $this->assertAuthenticated();
@@ -25,12 +25,12 @@ class VehicleApiTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'user@example.com', 'password' => 'password1']);
 
-        $this->postJson('/api/auth/login', ['email' => 'USER@EXAMPLE.COM', 'password' => 'password1'])
+        $this->withCsrf()->postJson('/api/auth/login', ['email' => 'USER@EXAMPLE.COM', 'password' => 'password1'])
             ->assertOk()
             ->assertJsonPath('data.id', $user->id);
         $this->assertAuthenticatedAs($user);
         $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('data.email', 'user@example.com');
-        $this->postJson('/api/auth/logout')->assertNoContent();
+        $this->withCsrf()->postJson('/api/auth/logout')->assertNoContent();
         $this->getJson('/api/auth/me')->assertUnauthorized();
     }
 
@@ -39,10 +39,10 @@ class VehicleApiTest extends TestCase
         User::factory()->create(['email' => 'user@example.com', 'password' => 'password1']);
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
-            $this->postJson('/api/auth/login', ['email' => 'user@example.com', 'password' => 'wrong-password'])->assertUnprocessable()->assertJsonValidationErrors('email');
+            $this->withCsrf()->postJson('/api/auth/login', ['email' => 'user@example.com', 'password' => 'wrong-password'])->assertUnprocessable()->assertJsonValidationErrors('email');
         }
 
-        $this->postJson('/api/auth/login', ['email' => 'user@example.com', 'password' => 'wrong-password'])->assertTooManyRequests();
+        $this->withCsrf()->postJson('/api/auth/login', ['email' => 'user@example.com', 'password' => 'wrong-password'])->assertTooManyRequests();
     }
 
     public function test_every_response_echoes_or_generates_a_request_identifier(): void

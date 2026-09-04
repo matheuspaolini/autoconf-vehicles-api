@@ -7,6 +7,7 @@ use App\Domain\Vehicles\VehicleVersion;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleImage;
+use Closure;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -25,7 +26,10 @@ final class VehicleImageLifecycle
      * @param  list<UploadedFile>  $files
      * @return Collection<int, VehicleImage>
      */
-    public function upload(Vehicle $vehicle, User $actor, array $files, int $expectedVersion): Collection
+    /**
+     * @param  null|Closure(Collection<int, VehicleImage>, Vehicle): void  $afterPersisted
+     */
+    public function upload(Vehicle $vehicle, User $actor, array $files, int $expectedVersion, ?Closure $afterPersisted = null): Collection
     {
         $paths = [];
 
@@ -40,7 +44,7 @@ final class VehicleImageLifecycle
                 $paths[] = $path;
             }
 
-            return DB::transaction(function () use ($vehicle, $actor, $paths, $expectedVersion): Collection {
+            return DB::transaction(function () use ($vehicle, $actor, $paths, $expectedVersion, $afterPersisted): Collection {
                 /** @var Vehicle $lockedVehicle */
                 $lockedVehicle = Vehicle::query()
                     ->whereKey($vehicle->getKey())
@@ -71,6 +75,10 @@ final class VehicleImageLifecycle
                     'updated_by' => $actor->getKey(),
                     'lock_version' => $lockedVehicle->lock_version + 1,
                 ])->touch();
+
+                if ($afterPersisted instanceof Closure) {
+                    $afterPersisted($created, $lockedVehicle);
+                }
 
                 return $created;
             });

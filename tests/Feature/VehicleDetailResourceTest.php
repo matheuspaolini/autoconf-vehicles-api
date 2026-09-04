@@ -12,21 +12,21 @@ class VehicleDetailResourceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_creating_a_vehicle_returns_detail_fields_without_an_embedded_gallery(): void
+    public function test_creating_a_vehicle_returns_detail_fields_with_an_empty_embedded_gallery(): void
     {
         $owner = User::factory()->create();
 
         $this->actingAs($owner)
             ->postJson('/api/vehicles', $this->payload())
             ->assertCreated()
-            ->assertJsonMissingPath('data.images')
+            ->assertJsonCount(0, 'data.images')
             ->assertJsonPath('data.owner.id', $owner->id)
             ->assertJsonPath('data.permissions.update', true)
             ->assertJsonPath('data.audit.created_by.id', $owner->id)
             ->assertJsonPath('data.valor_venda', '78900.00');
     }
 
-    public function test_detail_omits_images_and_the_gallery_endpoint_returns_them_cover_first(): void
+    public function test_detail_and_gallery_endpoint_return_images_cover_first_without_exposing_paths(): void
     {
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
@@ -38,7 +38,11 @@ class VehicleDetailResourceTest extends TestCase
             ->getJson("/api/vehicles/{$vehicle->id}")
             ->assertOk()
             ->assertHeader('ETag', $this->etag($vehicle))
-            ->assertJsonMissingPath('data.images')
+            ->assertJsonPath('data.images.0.id', $cover->id)
+            ->assertJsonPath('data.images.1.id', $oldestNonCover->id)
+            ->assertJsonPath('data.images.2.id', $newestNonCover->id)
+            ->assertJsonCount(3, 'data.images')
+            ->assertJsonMissingPath('data.images.0.path')
             ->assertJsonPath('data.permissions.update', true)
             ->assertJsonPath('data.audit.updated_by.id', $owner->id);
 

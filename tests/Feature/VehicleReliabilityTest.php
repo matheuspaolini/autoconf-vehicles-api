@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
+use App\Domain\Vehicles\VehicleUploadReplay;
 use App\Jobs\CleanupVehicleMedia;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -58,6 +59,37 @@ class VehicleReliabilityTest extends TestCase
 
         $this->assertSame($first->json('data'), $replay->json('data'));
         $this->assertSame(1, $vehicle->images()->count());
+    }
+
+    public function test_upload_rollback_does_not_persist_a_completed_replay_or_public_files(): void
+    {
+        Storage::fake('public');
+        $owner = User::factory()->create();
+        $vehicle = Vehicle::factory()->forOwner($owner)->create();
+        $replay = app(VehicleUploadReplay::class);
+        $claim = $replay->claim($owner, $vehicle, (string) str()->uuid(), 'request-hash');
+        $files = [UploadedFile::fake()->createWithContent('car.png', file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')))];
+
+        try {
+            app(VehicleImageLifecycle::class)->upload(
+                $vehicle,
+                $owner,
+                $files,
+                $vehicle->lock_version,
+                function ($images, Vehicle $lockedVehicle) use ($claim, $replay): void {
+                    $replay->complete($claim, ['data' => []], 201, "\"vehicle-{$lockedVehicle->id}-v{$lockedVehicle->lock_version}\"");
+
+                    throw new \RuntimeException('Rollback completed upload replay.');
+                },
+            );
+            $this->fail('Expected the completed replay transaction to roll back.');
+        } catch (\RuntimeException) {
+            $replay->abandon($claim);
+        }
+
+        $this->assertDatabaseCount('vehicle_images', 0);
+        $this->assertDatabaseCount('vehicle_upload_requests', 0);
+        Storage::disk('public')->assertDirectoryEmpty("vehicles/{$vehicle->id}");
     }
 
     public function test_gallery_capacity_is_enforced_while_the_vehicle_is_locked(): void

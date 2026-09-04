@@ -11,8 +11,7 @@ final class DeleteVehicle
 {
     public function __construct(
         private readonly VehicleMediaRetirement $mediaRetirement,
-    ) {
-    }
+    ) {}
 
     public function execute(Vehicle $vehicle, int $expectedVersion): void
     {

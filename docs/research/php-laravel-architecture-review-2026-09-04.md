@@ -4,11 +4,11 @@ Reviewed: 2026-09-04
 
 ## Verdict
 
-**Good for a small production Laravel application.** The code is more deliberate
+**Good for a small Laravel demo application.** The code is more deliberate
 than a typical small CRUD application: it has explicit ownership authorization,
 request validation, resource-based JSON responses, PostgreSQL-backed gallery
 invariants, optimistic write concurrency, idempotent image uploads, and durable
-post-commit media cleanup. These are production concerns, not project junk.
+post-commit media cleanup. These are worthwhile demo reliability concerns.
 
 The previous Vehicle read path was mildly over-designed for the application's
 size. Five immutable presentation objects and three resources represented one

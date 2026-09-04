@@ -60,11 +60,15 @@ class OpenApiDocumentationTest extends TestCase
         $listResponse = $document['paths']['/vehicles']['get']['responses']['200']['content']['application/json']['schema'];
         $uploadSchema = $document['components']['schemas']['UploadVehicleImagesRequest'];
 
-        $this->assertSame('integer', $listSchema['properties']['id']['type']);
-        $this->assertSame('integer', $listSchema['properties']['km']['type']);
-        $this->assertSame('string', $listSchema['properties']['valor_venda']['type']);
+        $this->assertSame('integer', $this->schema($document, $listSchema['properties']['id'])['type']);
+        $this->assertSame('integer', $this->schema($document, $listSchema['properties']['km'])['type']);
+        $this->assertSame('string', $this->schema($document, $listSchema['properties']['valor_venda'])['type']);
         $this->assertSame(['manual', 'automatico'], $listSchema['properties']['cambio']['enum']);
-        $this->assertArrayNotHasKey('images', $detailSchema['properties']);
+        $imagesSchema = $this->schema($document, $detailSchema['properties']['images']);
+        $imageSchema = $this->schema($document, $imagesSchema['items']);
+        $this->assertSame('array', $imagesSchema['type']);
+        $this->assertArrayHasKey('url', $imageSchema['properties']);
+        $this->assertArrayNotHasKey('path', $imageSchema['properties']);
         $this->assertArrayHasKey('audit', $detailSchema['properties']);
         $this->assertArrayHasKey('links', $listResponse['properties']);
         $this->assertArrayHasKey('meta', $listResponse['properties']);
@@ -137,5 +141,27 @@ class OpenApiDocumentationTest extends TestCase
         }
 
         $this->fail("Parameter [{$name}] was not documented.");
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>
+     */
+    private function schema(array $document, array $schema): array
+    {
+        while (isset($schema['$ref'])) {
+            $prefix = '#/components/schemas/';
+            $reference = (string) $schema['$ref'];
+
+            if (! \str_starts_with($reference, $prefix)) {
+                $this->fail("Unsupported OpenAPI schema reference [{$reference}].");
+            }
+
+            $name = \substr($reference, \strlen($prefix));
+            $schema = $document['components']['schemas'][$name] ?? [];
+        }
+
+        return $schema;
     }
 }
