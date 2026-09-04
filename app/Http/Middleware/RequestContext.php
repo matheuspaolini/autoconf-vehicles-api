@@ -12,7 +12,7 @@ class RequestContext
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $requestId = trim((string) $request->header('X-Request-Id')) ?: (string) Str::uuid();
+        $requestId = \trim((string) $request->header('X-Request-Id')) ?: (string) Str::uuid();
 
         Log::withContext(['request_id' => $requestId]);
 

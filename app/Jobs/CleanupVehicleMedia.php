@@ -15,10 +15,15 @@ class CleanupVehicleMedia implements ShouldQueue
 {
     use Dispatchable, Queueable;
 
-    public int $tries = 3;
+    private const MAX_ATTEMPTS = 3;
 
     /** @var list<int> */
-    public array $backoff = [5, 60, 300];
+    private const RETRY_BACKOFF_SECONDS = [5, 60, 300];
+
+    public int $tries = self::MAX_ATTEMPTS;
+
+    /** @var list<int> */
+    public array $backoff = self::RETRY_BACKOFF_SECONDS;
 
     public function __construct(public readonly int $taskId) {}
 

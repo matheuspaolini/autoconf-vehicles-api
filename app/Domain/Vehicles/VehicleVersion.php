@@ -10,20 +10,25 @@ final class VehicleVersion
 {
     public function etag(Vehicle $vehicle): string
     {
-        return sprintf('"vehicle-%d-v%d"', $vehicle->getKey(), $vehicle->lock_version);
+        return $this->etagFor($vehicle->getKey(), $vehicle->lock_version);
+    }
+
+    public function etagFor(int $vehicleId, int $lockVersion): string
+    {
+        return \sprintf('"vehicle-%d-v%d"', $vehicleId, $lockVersion);
     }
 
     public function expectedVersion(Request $request, Vehicle $vehicle): int
     {
-        $ifMatch = trim((string) $request->header('If-Match'));
+        $ifMatch = \trim((string) $request->header('If-Match'));
 
         if ($ifMatch === '') {
             throw new HttpException(428, 'The If-Match header is required.');
         }
 
-        $pattern = '/^"vehicle-'.preg_quote((string) $vehicle->getKey(), '/').'-v([1-9][0-9]*)"$/D';
+        $pattern = '/^"vehicle-'.\preg_quote((string) $vehicle->getKey(), '/').'-v([1-9][0-9]*)"$/D';
 
-        if (preg_match($pattern, $ifMatch, $matches) !== 1) {
+        if (\preg_match($pattern, $ifMatch, $matches) !== 1) {
             throw new HttpException(412, 'The Vehicle version is no longer current.');
         }
 

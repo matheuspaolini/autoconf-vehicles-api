@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Vehicles\Read\VehicleImageRepresentation;
+use App\Domain\Vehicles\Read\VehicleRepresentationRead;
 use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
 use App\Domain\Vehicles\VehicleUploadReplay;
 use App\Domain\Vehicles\VehicleVersion;
 use App\Http\Requests\UploadVehicleImagesRequest;
 use App\Http\Resources\VehicleImageResource;
 use App\Models\Vehicle;
+use App\Models\VehicleImage;
 use Dedoc\Scramble\Attributes\Endpoint;
 use Dedoc\Scramble\Attributes\HeaderParameter;
 use Dedoc\Scramble\Attributes\Response;
@@ -41,10 +44,11 @@ class UploadVehicleImagesController extends Controller
         UploadVehicleImagesRequest $request,
         Vehicle $vehicle,
         VehicleImageLifecycle $lifecycle,
+        VehicleRepresentationRead $vehicleRead,
         VehicleUploadReplay $replay,
         VehicleVersion $version,
     ) {
-        $key = trim((string) $request->header('Idempotency-Key'));
+        $key = \trim((string) $request->header('Idempotency-Key'));
 
         if (! Str::isUuid($key)) {
             throw ValidationException::withMessages([
@@ -69,7 +73,10 @@ class UploadVehicleImagesController extends Controller
             );
             $currentVehicle = Vehicle::query()->findOrFail($vehicle->getKey());
             $etag = $version->etag($currentVehicle);
-            $response = VehicleImageResource::collection($images)->response()->setStatusCode(201)->header('ETag', $etag);
+            $representations = $images->map(
+                fn (VehicleImage $image): VehicleImageRepresentation => $vehicleRead->image($image),
+            );
+            $response = VehicleImageResource::collection($representations)->response()->setStatusCode(201)->header('ETag', $etag);
             /** @var array<string, mixed> $body */
             $body = $response->getData(true);
             $replay->complete($claim, $body, 201, $etag);

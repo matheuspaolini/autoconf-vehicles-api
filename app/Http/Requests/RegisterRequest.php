@@ -15,7 +15,7 @@ class RegisterRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge(['email' => Str::lower(trim((string) $this->input('email'))), 'name' => trim((string) $this->input('name'))]);
+        $this->merge(['email' => Str::lower(\trim((string) $this->input('email'))), 'name' => \trim((string) $this->input('name'))]);
     }
 
     public function rules(): array

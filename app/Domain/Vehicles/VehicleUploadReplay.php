@@ -7,6 +7,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleUploadRequest;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class VehicleUploadReplay
@@ -14,10 +15,10 @@ final class VehicleUploadReplay
     /** @param list<UploadedFile> $files */
     public function fingerprint(array $files): string
     {
-        $parts = array_map(function (UploadedFile $file): array {
+        $parts = \array_map(function (UploadedFile $file): array {
             $path = $file->getRealPath();
 
-            if (! is_string($path) || ($contentHash = hash_file('sha256', $path)) === false) {
+            if (! \is_string($path) || ($contentHash = \hash_file('sha256', $path)) === false) {
                 throw new \RuntimeException('The uploaded file could not be fingerprinted.');
             }
 
@@ -29,20 +30,20 @@ final class VehicleUploadReplay
             ];
         }, $files);
 
-        return hash('sha256', json_encode($parts, JSON_THROW_ON_ERROR));
+        return \hash('sha256', \json_encode($parts, JSON_THROW_ON_ERROR));
     }
 
     public function claim(User $user, Vehicle $vehicle, string $key, string $fingerprint): VehicleUploadRequest
     {
         try {
-            return VehicleUploadRequest::query()->create([
+            return DB::transaction(fn (): VehicleUploadRequest => VehicleUploadRequest::query()->create([
                 'user_id' => $user->getKey(),
                 'vehicle_id' => $vehicle->getKey(),
                 'idempotency_key' => $key,
                 'request_hash' => $fingerprint,
                 'status' => 'processing',
                 'expires_at' => now()->addDay(),
-            ]);
+            ]));
         } catch (QueryException $exception) {
             if ((string) $exception->getCode() !== '23505') {
                 throw $exception;
@@ -61,7 +62,7 @@ final class VehicleUploadReplay
                 return $this->claim($user, $vehicle, $key, $fingerprint);
             }
 
-            if (! hash_equals($existing->request_hash, $fingerprint)) {
+            if (! \hash_equals($existing->request_hash, $fingerprint)) {
                 throw new HttpException(409, 'This Idempotency-Key was already used with a different upload.');
             }
 

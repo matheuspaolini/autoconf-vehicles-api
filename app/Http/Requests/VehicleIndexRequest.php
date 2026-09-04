@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Vehicles\Read\VehicleCatalogGrammar;
 use App\Models\Vehicle;
 use Dedoc\Scramble\Attributes\QueryParameter;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 #[QueryParameter(
     'sort',
@@ -27,19 +26,8 @@ class VehicleIndexRequest extends FormRequest
         return $this->user()?->can('viewAny', Vehicle::class) ?? false;
     }
 
-    public function rules(): array
+    public function rules(VehicleCatalogGrammar $grammar): array
     {
-        return ['q' => ['nullable', 'string', 'max:100'], 'marca' => ['nullable', 'string', 'max:100'], 'modelo' => ['nullable', 'string', 'max:100'], 'placa' => ['nullable', 'string', 'max:7'], 'sort' => ['nullable', 'string', 'max:100'], 'scope' => ['nullable', Rule::in(['mine'])], 'page' => ['nullable', 'integer', 'min:1'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']];
-    }
-
-    public function after(): array
-    {
-        return [function (Validator $validator): void {
-            foreach (array_filter(explode(',', (string) $this->input('sort'))) as $term) {
-                if (! in_array(ltrim($term, '-'), ['km', 'valor_venda'], true)) {
-                    $validator->errors()->add('sort', 'The selected sort field is invalid.');
-                }
-            }
-        }];
+        return $grammar->validationRules();
     }
 }

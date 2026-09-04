@@ -2,27 +2,16 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Vehicle;
+use App\Domain\Vehicles\Read\VehicleDetailRepresentation;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Vehicle */
-class VehicleDetailResource extends VehicleListResource
+/** @property-read VehicleDetailRepresentation $resource */
+class VehicleDetailResource extends JsonResource
 {
+    /** @param VehicleDetailRepresentation $resource */
     public function toArray(Request $request): array
     {
-        return array_merge(parent::toArray($request), [
-            'audit' => [
-                'created_at' => $this->created_at?->toISOString(),
-                'created_by' => [
-                    'id' => $this->creator->id,
-                    'name' => $this->creator->name,
-                ],
-                'updated_at' => $this->updated_at?->toISOString(),
-                'updated_by' => [
-                    'id' => $this->updater->id,
-                    'name' => $this->updater->name,
-                ],
-            ],
-        ]);
+        return $this->resource->toArray();
     }
 }

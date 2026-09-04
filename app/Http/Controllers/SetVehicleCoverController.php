@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Vehicles\Read\VehicleRepresentationRead;
 use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
 use App\Domain\Vehicles\VehicleVersion;
 use App\Http\Resources\VehicleImageResource;
@@ -26,13 +27,13 @@ class SetVehicleCoverController extends Controller
         type: 'string',
     )]
     #[Response(429, 'Too many API requests.')]
-    public function __invoke(Request $request, Vehicle $vehicle, VehicleImage $image, VehicleImageLifecycle $lifecycle, VehicleVersion $version)
+    public function __invoke(Request $request, Vehicle $vehicle, VehicleImage $image, VehicleImageLifecycle $lifecycle, VehicleRepresentationRead $vehicleRead, VehicleVersion $version)
     {
         $this->authorize('manageImages', $vehicle);
 
         $result = $lifecycle->setCover($vehicle, $image, $request->user(), $version->expectedVersion($request, $vehicle));
         $currentVehicle = Vehicle::query()->findOrFail($vehicle->getKey());
 
-        return VehicleImageResource::make($result)->response()->header('ETag', $version->etag($currentVehicle));
+        return VehicleImageResource::make($vehicleRead->image($result))->response()->header('ETag', $version->etag($currentVehicle));
     }
 }

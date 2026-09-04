@@ -59,6 +59,13 @@ class VehicleApiTest extends TestCase
         $this->assertDatabaseHas('vehicles', ['user_id' => $actor->id, 'created_by' => $actor->id, 'updated_by' => $actor->id, 'placa' => 'ABC1D23']);
     }
 
+    public function test_a_guest_receives_json_unauthorized_without_an_accept_header(): void
+    {
+        $this->get('/api/vehicles')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
+    }
+
     public function test_vehicle_validation_and_mass_assignment_protect_owner_and_audit_fields(): void
     {
         $actor = User::factory()->create();

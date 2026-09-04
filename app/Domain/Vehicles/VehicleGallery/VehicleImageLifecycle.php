@@ -2,9 +2,8 @@
 
 namespace App\Domain\Vehicles\VehicleGallery;
 
+use App\Domain\Vehicles\VehicleMediaRetirement;
 use App\Domain\Vehicles\VehicleVersion;
-use App\Jobs\CleanupVehicleMedia;
-use App\Models\MediaCleanupTask;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleImage;
@@ -19,6 +18,7 @@ final class VehicleImageLifecycle
 {
     public function __construct(
         private readonly Filesystem $disk,
+        private readonly VehicleMediaRetirement $mediaRetirement,
     ) {}
 
     /**
@@ -33,7 +33,7 @@ final class VehicleImageLifecycle
             foreach ($files as $file) {
                 $path = $this->disk->putFile("vehicles/{$vehicle->getKey()}", $file);
 
-                if (! is_string($path)) {
+                if (! \is_string($path)) {
                     throw new \RuntimeException('Vehicle image could not be stored.');
                 }
 
@@ -49,7 +49,7 @@ final class VehicleImageLifecycle
 
                 app(VehicleVersion::class)->assertCurrent($lockedVehicle, $expectedVersion);
 
-                if ($lockedVehicle->images()->count() + count($paths) > 20) {
+                if ($lockedVehicle->images()->count() + \count($paths) > 20) {
                     throw ValidationException::withMessages([
                         'files' => ['A Vehicle Gallery can contain at most 20 images.'],
                     ]);
@@ -111,7 +111,7 @@ final class VehicleImageLifecycle
 
     public function delete(Vehicle $vehicle, VehicleImage $image, User $actor, int $expectedVersion): void
     {
-        $taskId = DB::transaction(function () use ($vehicle, $image, $actor, $expectedVersion): int {
+        DB::transaction(function () use ($vehicle, $image, $actor, $expectedVersion): void {
             /** @var Vehicle $lockedVehicle */
             $lockedVehicle = Vehicle::query()
                 ->whereKey($vehicle->getKey())
@@ -137,14 +137,7 @@ final class VehicleImageLifecycle
                 'lock_version' => $lockedVehicle->lock_version + 1,
             ])->touch();
 
-            $task = MediaCleanupTask::query()->create([
-                'paths' => [$path],
-                'last_dispatched_at' => now(),
-            ]);
-
-            return $task->getKey();
+            $this->mediaRetirement->retire(paths: [$path], directory: null);
         });
-
-        CleanupVehicleMedia::dispatch($taskId);
     }
 }

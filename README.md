@@ -8,19 +8,25 @@ Requirements: PHP 8.2+, Composer, Docker Compose, PostgreSQL PDO (`pdo_pgsql`), 
 
 ```bash
 cp .env.example .env
-docker compose -f docker/compose.dev.yaml up -d
+docker compose -f docker/compose.dev.yaml up -d --wait
 composer install
 php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link
-php artisan serve
+php artisan serve --host=localhost --port=8080
 php artisan queue:work
 php artisan schedule:work
 ```
 
-The development Compose service exposes PostgreSQL on `127.0.0.1:5432`. Production uses `docker/compose.prod.yaml`; provide production credentials and set `DB_HOST=postgres` so the API reaches PostgreSQL over the private Compose network. The SPA and API must both use `localhost` (not a mix of `localhost` and `127.0.0.1`) because browser cookies are host-sensitive.
+The development Compose service exposes PostgreSQL on `127.0.0.1:5432`. `docker/compose.prod.yaml` defines PostgreSQL only; deploy the API separately on the same private network and set `DB_HOST=postgres`. The SPA and API must both use `localhost` (not a mix of `localhost` and `127.0.0.1`) because browser cookies are host-sensitive.
 
-The default origins are API `http://localhost:8080` and SPA `http://localhost:5173`. Set `APP_URL`, `SERVER_HOST`, `SERVER_PORT`, `FRONTEND_URL`, and `SANCTUM_STATEFUL_DOMAINS` together if either changes.
+On its first initialization, the development database also creates `autoconf_test` for PHPUnit. If the `postgres_data` volume already exists from before this setup, create it once with:
+
+```bash
+docker compose -f docker/compose.dev.yaml exec -T postgres createdb -U autoconf autoconf_test
+```
+
+The default origins are API `http://localhost:8080` and SPA `http://localhost:5173`. If either changes, update `APP_URL`, `FRONTEND_URL`, and `SANCTUM_STATEFUL_DOMAINS`, and pass the matching host and port to `artisan serve`.
 
 Seed accounts: `admin@example.com` / `password` and `user@example.com` / `password`.
 
