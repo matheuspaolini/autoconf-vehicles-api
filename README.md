@@ -22,7 +22,9 @@ The stack starts PostgreSQL, the API, a queue worker, and the scheduler. It inst
 | OpenAPI JSON | `http://localhost:8080/docs/api.json` |
 | PostgreSQL | `127.0.0.1:5432` |
 
-The database starts empty. To add the local demo users and vehicles:
+The database starts empty. To add the local demo users and vehicles, run the
+seeder inside the API container so downloaded gallery images are written to the
+shared Docker storage volume:
 
 ```bash
 docker compose exec api php artisan db:seed
@@ -41,13 +43,22 @@ docker compose logs --follow --tail=0 api
 # Run the API checks
 docker compose exec api vendor/bin/pint --test
 docker compose exec api php artisan scramble:analyze
-docker compose exec api php artisan test
 
 # Stop the stack and retain local data
 docker compose down
 ```
 
 To reset all local database, dependency, and upload data, run `docker compose down --volumes`.
+
+## Tests
+
+With the local stack running, execute the full PostgreSQL-backed test suite:
+
+```bash
+docker compose exec api php artisan test
+```
+
+The Laravel test runner prints the passing test results and exits non-zero if a test fails.
 
 ## Further reading
 

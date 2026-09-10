@@ -17,8 +17,16 @@ class VehicleSeeder extends Seeder
 
     private const IMAGES_PER_VEHICLE = 4;
 
+    private const IMAGE_CANDIDATE_LIMIT = 50;
+
     /** @var array<string, string> */
     private array $downloadedImages = [];
+
+    /** @var array<string, true> */
+    private array $usedSourceUrls = [];
+
+    /** @var array<string, true> */
+    private array $usedContentHashes = [];
 
     private bool $commonsAvailable = true;
 
@@ -76,6 +84,26 @@ class VehicleSeeder extends Seeder
             $this->vehicle('LAY8J90', '9C2RH1130RR054248', 'Honda', 'CB 500X', 'ABS', 52900, 'Vermelho', 6500, Transmission::Manual, FuelType::Gasoline),
             $this->vehicle('MBZ9K01', '98RDFY41XRA054349', 'BYD', 'Song Plus', 'DM-i', 239800, 'Branco', 5000, Transmission::Automatic, FuelType::Hybrid),
             $this->vehicle('NCD0L12', '9BGAH69S0RB054450', 'Chevrolet', 'Equinox', 'Premier', 229900, 'Preto', 14500, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('ODE1M23', 'WVWZZZ1KZRW054551', 'Volkswagen', 'Golf', 'GTI', 289900, 'Branco', 8500, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('PEF2N34', '3VWDP7AJ5RM054652', 'Volkswagen', 'Jetta', 'GLI', 239900, 'Cinza', 12000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('QFG3O45', '1G1FH1R79R0054753', 'Chevrolet', 'Camaro', 'SS', 529900, 'Amarelo', 6000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('RGH4P56', '1G1BE5SMXR7054854', 'Chevrolet', 'Cruze', 'Premier', 149900, 'Preto', 31000, Transmission::Automatic, FuelType::Flex),
+            $this->vehicle('SHI5Q67', '9BD358A1NRK054955', 'Fiat', 'Argo', 'Trekking', 96900, 'Vermelho', 19000, Transmission::Automatic, FuelType::Flex),
+            $this->vehicle('TIJ6R78', '3C3CFFBR1RT055056', 'Fiat', '500', 'Cabrio', 189900, 'Branco', 14000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('UKL7S89', '9BRK29BT7R1055157', 'Toyota', 'Yaris', 'XLS', 119900, 'Prata', 22000, Transmission::Automatic, FuelType::Flex),
+            $this->vehicle('VLM8T90', 'JTMRWRFV5RD055258', 'Toyota', 'RAV4', 'SX Hybrid', 349900, 'Azul', 17000, Transmission::Automatic, FuelType::Hybrid),
+            $this->vehicle('WMN9U01', '93HGK5870RZ055359', 'Honda', 'Fit', 'EXL', 98900, 'Cinza', 39000, Transmission::Automatic, FuelType::Flex),
+            $this->vehicle('XOP0V12', '1HGCV1F30RA055460', 'Honda', 'Accord', 'Touring Hybrid', 329900, 'Preto', 11000, Transmission::Automatic, FuelType::Hybrid),
+            $this->vehicle('YPQ1W23', '1FA6P8TH6R5055561', 'Ford', 'Mustang', 'GT', 489900, 'Vermelho', 7000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('ZRS2X34', '1FMDE5BH2RLA55662', 'Ford', 'Bronco', 'Wildtrak', 279900, 'Laranja', 13000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('ATU3Y45', '94DJAAN15RJ055763', 'Nissan', 'Versa', 'Exclusive', 129900, 'Azul', 16000, Transmission::Automatic, FuelType::Flex),
+            $this->vehicle('BUV4Z56', '1N4AZ1CP9RC055864', 'Nissan', 'Leaf', 'Tekna', 219900, 'Branco', 9000, Transmission::Automatic, FuelType::Electric),
+            $this->vehicle('CVX5A67', '95PJN81DPRA055965', 'Hyundai', 'Tucson', 'Limited', 199900, 'Prata', 21000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('DWY6B78', 'KM8S3DAF6RU056066', 'Hyundai', 'Santa Fe', 'Calligraphy', 399900, 'Preto', 10000, Transmission::Automatic, FuelType::Hybrid),
+            $this->vehicle('EXZ7C89', '1C4HJXDG8RW056167', 'Jeep', 'Wrangler', 'Sahara', 459900, 'Verde', 8000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('FBA8D90', '1C4RJFBG5RC056268', 'Jeep', 'Grand Cherokee', 'Limited', 569900, 'Cinza', 12000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('GCB9E01', 'WBA5R1C00RFP56369', 'BMW', '320i', 'M Sport', 349900, 'Azul', 15000, Transmission::Automatic, FuelType::Gasoline),
+            $this->vehicle('HDC0F12', 'W1KWF8EB2RR056470', 'Mercedes-Benz', 'C-Class', 'C 300 AMG Line', 429900, 'Branco', 9500, Transmission::Automatic, FuelType::Gasoline),
         ];
     }
 
@@ -88,18 +116,30 @@ class VehicleSeeder extends Seeder
     private function seedGallery(Vehicle $vehicle): void
     {
         $images = $this->commonsImages($vehicle->marca, $vehicle->modelo);
+        $stored = 0;
 
-        for ($position = 0; $position < self::IMAGES_PER_VEHICLE; $position++) {
-            $path = $this->storeImage($vehicle, $images[$position] ?? null, $position + 1);
+        foreach ($images as $image) {
+            $path = $this->storeUniqueImage($vehicle, $image, $stored + 1);
+
+            if ($path === null) {
+                continue;
+            }
+
             $image = $vehicle->images()->create(['path' => $path]);
 
-            if ($position === 0) {
+            if ($stored === 0) {
                 $image->forceFill(['is_cover' => true])->save();
+            }
+
+            $stored++;
+
+            if ($stored === self::IMAGES_PER_VEHICLE) {
+                break;
             }
         }
     }
 
-    /** @return list<array{url: string, mime: string}> */
+    /** @return list<array{download_url: string, source_url: string, mime: string}> */
     private function commonsImages(string $brand, string $model): array
     {
         if (! $this->commonsAvailable) {
@@ -115,7 +155,7 @@ class VehicleSeeder extends Seeder
         try {
             $response = $this->http()->get(self::COMMONS_API, [
                 'action' => 'query', 'format' => 'json', 'generator' => 'search',
-                'gsrnamespace' => 6, 'gsrlimit' => 12,
+                'gsrnamespace' => 6, 'gsrlimit' => self::IMAGE_CANDIDATE_LIMIT,
                 'gsrsearch' => 'filetype:bitmap '.\sprintf('"%s"', $query),
                 'prop' => 'imageinfo', 'iiprop' => 'url|mime', 'iiurlwidth' => 1280,
             ]);
@@ -126,21 +166,20 @@ class VehicleSeeder extends Seeder
                 return [];
             }
 
+            $pages = \array_values($response->json('query.pages', []));
+            \usort($pages, static fn (array $left, array $right): int => ($left['index'] ?? 0) <=> ($right['index'] ?? 0));
             $images = [];
 
-            foreach ($response->json('query.pages', []) as $page) {
+            foreach ($pages as $page) {
                 $info = $page['imageinfo'][0] ?? null;
-                $url = $info['thumburl'] ?? $info['url'] ?? null;
+                $downloadUrl = $info['thumburl'] ?? $info['url'] ?? null;
+                $sourceUrl = $info['url'] ?? null;
                 $mime = $info['mime'] ?? null;
                 $title = \strtolower($page['title'] ?? '');
                 $matchesModel = $this->containsEveryWord($title, $requiredWords);
 
-                if ($matchesModel && \is_string($url) && \in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
-                    $images[] = ['url' => $url, 'mime' => $mime];
-                }
-
-                if (\count($images) === self::IMAGES_PER_VEHICLE) {
-                    break;
+                if ($matchesModel && \is_string($downloadUrl) && \is_string($sourceUrl) && \in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+                    $images[] = ['download_url' => $downloadUrl, 'source_url' => $sourceUrl, 'mime' => $mime];
                 }
             }
 
@@ -152,23 +191,35 @@ class VehicleSeeder extends Seeder
         }
     }
 
-    /** @param array{url: string, mime: string}|null $image */
-    private function storeImage(Vehicle $vehicle, ?array $image, int $position): string
+    /** @param array{download_url: string, source_url: string, mime: string} $image */
+    private function storeUniqueImage(Vehicle $vehicle, array $image, int $position): ?string
     {
-        $extension = match ($image['mime'] ?? null) {
+        if (\array_key_exists($image['source_url'], $this->usedSourceUrls)) {
+            return null;
+        }
+
+        $contents = $this->download($image['download_url']);
+
+        if ($contents === null) {
+            return null;
+        }
+
+        $contentHash = \hash('sha256', $contents);
+
+        if (\array_key_exists($contentHash, $this->usedContentHashes)) {
+            return null;
+        }
+
+        $extension = match ($image['mime']) {
             'image/jpeg' => 'jpg',
             'image/webp' => 'webp',
             default => 'png',
         };
         $path = "vehicles/{$vehicle->id}/gallery-{$position}.{$extension}";
-        $contents = $image === null ? null : $this->download($image['url']);
-
-        if ($contents === null) {
-            $path = "vehicles/{$vehicle->id}/gallery-{$position}.png";
-            $contents = \file_get_contents(database_path('seeders/assets/vehicle-placeholder.png'));
-        }
 
         Storage::disk('public')->put($path, $contents);
+        $this->usedSourceUrls[$image['source_url']] = true;
+        $this->usedContentHashes[$contentHash] = true;
 
         return $path;
     }
