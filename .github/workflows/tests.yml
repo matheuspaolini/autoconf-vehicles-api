@@ -17,6 +17,21 @@ jobs:
     name: Quality checks
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: autoconf
+          POSTGRES_USER: autoconf
+          POSTGRES_PASSWORD: autoconf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autoconf -d autoconf"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
