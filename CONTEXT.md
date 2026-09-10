@@ -33,3 +33,13 @@ authenticated User.
 
 The User assigned to a Vehicle when it is registered (`vehicles.user_id`).
 This is distinct from the creator and updater recorded in the Vehicle audit.
+
+## Vehicle mutation actor
+
+The authenticated User attempting to change a Vehicle. A mutation actor may
+change a Vehicle only when they are its Proprietário or an administrator.
+
+## Vehicle version
+
+A monotonically increasing revision of a Vehicle. Every successful mutation
+advances it exactly once; rejected mutations leave it unchanged.

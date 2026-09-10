@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Domain\Vehicles\VehicleMediaRetirement;
-use App\Jobs\CleanupVehicleMedia;
-use App\Models\MediaCleanupTask;
-use App\Models\Vehicle;
+use App\Modules\Vehicles\Application\Command\ReconcileVehicleMediaHandler;
+use App\Modules\Vehicles\Application\Data\CleanupPolicy;
+use App\Modules\Vehicles\Application\Data\CleanupRequest;
+use App\Modules\Vehicles\Application\Port\CleanupOutbox;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\MediaCleanupTaskRecord as MediaCleanupTask;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
+use App\Modules\Vehicles\Infrastructure\Queue\CleanupVehicleMedia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +26,7 @@ class VehicleMediaRetirementTest extends TestCase
         Queue::fake();
 
         DB::transaction(function (): void {
-            app(VehicleMediaRetirement::class)->retire(['vehicles/1/obsolete.png'], null);
+            app(CleanupOutbox::class)->record(new CleanupRequest(['vehicles/1/obsolete.png'], null));
         });
 
         $task = MediaCleanupTask::query()->sole();
@@ -39,7 +42,7 @@ class VehicleMediaRetirementTest extends TestCase
 
         try {
             DB::transaction(function (): void {
-                app(VehicleMediaRetirement::class)->retire(['vehicles/1/obsolete.png'], null);
+                app(CleanupOutbox::class)->record(new CleanupRequest(['vehicles/1/obsolete.png'], null));
 
                 throw new RuntimeException('Rollback media retirement.');
             });
@@ -59,18 +62,18 @@ class VehicleMediaRetirementTest extends TestCase
         try {
             $overdue = MediaCleanupTask::query()->create([
                 'paths' => ['vehicles/1/overdue.png'],
-                'last_dispatched_at' => $now->copy()->subMinutes(VehicleMediaRetirement::RECONCILIATION_INTERVAL_MINUTES + 1),
+                'last_dispatched_at' => $now->copy()->subMinutes(CleanupPolicy::RECONCILIATION_INTERVAL_MINUTES + 1),
             ]);
             MediaCleanupTask::query()->create([
                 'paths' => ['vehicles/1/recent.png'],
-                'last_dispatched_at' => $now->copy()->subMinutes(VehicleMediaRetirement::RECONCILIATION_INTERVAL_MINUTES - 1),
+                'last_dispatched_at' => $now->copy()->subMinutes(CleanupPolicy::RECONCILIATION_INTERVAL_MINUTES - 1),
             ]);
             MediaCleanupTask::query()->create([
                 'paths' => ['vehicles/1/completed.png'],
                 'completed_at' => $now->copy()->subDay(),
             ]);
 
-            app(VehicleMediaRetirement::class)->reconcile();
+            app(ReconcileVehicleMediaHandler::class)->handle();
 
             $this->assertSame($now->toDateTimeString(), $overdue->refresh()->last_dispatched_at?->toDateTimeString());
             Queue::assertPushed(CleanupVehicleMedia::class, fn (CleanupVehicleMedia $job): bool => $job->taskId === $overdue->getKey());
@@ -95,7 +98,7 @@ class VehicleMediaRetirementTest extends TestCase
         $vehicle->images()->create(['path' => $referenced]);
         \touch($disk->path($oldOrphan), now()->subHour()->subSecond()->getTimestamp());
 
-        app(VehicleMediaRetirement::class)->reconcile();
+        app(ReconcileVehicleMediaHandler::class)->handle();
 
         $disk->assertExists($referenced);
         $disk->assertMissing($oldOrphan);

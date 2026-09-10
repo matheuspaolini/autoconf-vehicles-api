@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\RequestContext;
+use App\Modules\Vehicles\Presentation\Console\DispatchPendingMediaCleanups;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -12,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         health: '/up',
     )
+    ->withCommands([
+        DispatchPendingMediaCleanups::class,
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->redirectGuestsTo(static fn (): null => null);

@@ -1,0 +1,39 @@
+deptrac:
+  paths:
+    - ./app/Modules/Vehicles
+  exclude_files:
+    - '#.*Tests.*#'
+  layers:
+    - name: VehiclesDomain
+      collectors:
+        - type: classLike
+          value: ^App\\Modules\\Vehicles\\Domain\\
+    - name: VehiclesApplication
+      collectors:
+        - type: classLike
+          value: ^App\\Modules\\Vehicles\\Application\\
+    - name: VehiclesInfrastructure
+      collectors:
+        - type: classLike
+          value: ^App\\Modules\\Vehicles\\Infrastructure\\
+    - name: VehiclesPresentation
+      collectors:
+        - type: classLike
+          value: ^App\\Modules\\Vehicles\\Presentation\\
+    - name: Framework
+      collectors:
+        - type: classLike
+          value: ^(Illuminate|Laravel|Symfony)\\
+  ruleset:
+    VehiclesDomain: []
+    VehiclesApplication:
+      - VehiclesDomain
+    VehiclesInfrastructure:
+      - VehiclesApplication
+      - VehiclesDomain
+      - Framework
+    VehiclesPresentation:
+      - VehiclesApplication
+      - VehiclesDomain
+      - Framework
+    Framework: []

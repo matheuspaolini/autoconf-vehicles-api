@@ -1,5 +1,9 @@
 # PHP/Laravel Architecture Review
 
+> Superseded by [ADR 0003](../adr/0003-organize-vehicles-as-a-clean-architecture-module.md)
+> for the Vehicle capability. This document describes the legacy structure as
+> it existed on 2026-09-04 and remains historical research only.
+
 Reviewed: 2026-09-04
 
 ## Verdict

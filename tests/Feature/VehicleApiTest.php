@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Models\Vehicle;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -86,6 +86,33 @@ class VehicleApiTest extends TestCase
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         $this->actingAs($stranger)->withHeader('If-Match', $this->etag($vehicle))->patchJson("/api/vehicles/{$vehicle->id}", $this->payload())->assertForbidden();
         $this->actingAs($admin)->withHeader('If-Match', $this->etag($vehicle))->patchJson("/api/vehicles/{$vehicle->id}", $this->payload())->assertOk();
+    }
+
+    public function test_database_uniqueness_conflicts_keep_field_specific_validation_responses(): void
+    {
+        $owner = User::factory()->create();
+        $existing = Vehicle::factory()->forOwner($owner)->create([
+            'placa' => 'ABC1D23',
+            'chassi' => '9BWZZZ377VT004251',
+        ]);
+        $target = Vehicle::factory()->forOwner($owner)->create([
+            'placa' => 'DEF2G34',
+            'chassi' => '8APZZZ377VT004252',
+        ]);
+
+        $this->actingAs($owner)->postJson('/api/vehicles', array_replace($this->payload(), [
+            'placa' => $existing->placa,
+            'chassi' => '7HGCM82633A004253',
+        ]))->assertUnprocessable()
+            ->assertJsonPath('errors.placa.0', 'The placa has already been taken.');
+
+        $this->actingAs($owner)
+            ->withHeader('If-Match', $this->etag($target))
+            ->putJson("/api/vehicles/{$target->id}", array_replace($this->payload(), [
+                'placa' => 'GHI3J45',
+                'chassi' => $existing->chassi,
+            ]))->assertUnprocessable()
+            ->assertJsonPath('errors.chassi.0', 'The chassi has already been taken.');
     }
 
     public function test_first_uploaded_image_becomes_cover_and_its_file_is_stored(): void

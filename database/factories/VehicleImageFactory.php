@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\Vehicle;
-use App\Models\VehicleImage;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleImageRecord as VehicleImage;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<VehicleImage> */

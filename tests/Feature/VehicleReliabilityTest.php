@@ -2,17 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
-use App\Domain\Vehicles\VehicleUploadReplay;
-use App\Jobs\CleanupVehicleMedia;
 use App\Models\User;
-use App\Models\Vehicle;
-use App\Models\VehicleImage;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleImageRecord as VehicleImage;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
+use App\Modules\Vehicles\Infrastructure\Queue\CleanupVehicleMedia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class VehicleReliabilityTest extends TestCase
@@ -66,26 +63,12 @@ class VehicleReliabilityTest extends TestCase
         Storage::fake('public');
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
-        $replay = app(VehicleUploadReplay::class);
-        $claim = $replay->claim($owner, $vehicle, (string) str()->uuid(), 'request-hash');
         $files = [UploadedFile::fake()->createWithContent('car.png', file_get_contents(database_path('seeders/assets/vehicle-placeholder.png')))];
 
-        try {
-            app(VehicleImageLifecycle::class)->upload(
-                $vehicle,
-                $owner,
-                $files,
-                $vehicle->lock_version,
-                function ($images, Vehicle $lockedVehicle) use ($claim, $replay): void {
-                    $replay->complete($claim, ['data' => []], 201, "\"vehicle-{$lockedVehicle->id}-v{$lockedVehicle->lock_version}\"");
-
-                    throw new \RuntimeException('Rollback completed upload replay.');
-                },
-            );
-            $this->fail('Expected the completed replay transaction to roll back.');
-        } catch (\RuntimeException) {
-            $replay->abandon($claim);
-        }
+        $this->actingAs($owner)->withHeaders([
+            'If-Match' => '"vehicle-'.$vehicle->id.'-v999"',
+            'Idempotency-Key' => (string) str()->uuid(),
+        ])->post('/api/vehicles/'.$vehicle->id.'/images', ['files' => $files])->assertStatus(412);
 
         $this->assertDatabaseCount('vehicle_images', 0);
         $this->assertDatabaseCount('vehicle_upload_requests', 0);
@@ -100,13 +83,12 @@ class VehicleReliabilityTest extends TestCase
 
         VehicleImage::factory()->count(20)->for($vehicle)->create();
 
-        try {
-            app(VehicleImageLifecycle::class)->upload($vehicle, $owner, [
-                UploadedFile::fake()->create('overflow.png', 20, 'image/png'),
-            ], $vehicle->lock_version);
-            $this->fail('Expected the gallery capacity check to reject the upload.');
-        } catch (ValidationException) {
-        }
+        $this->actingAs($owner)->withHeaders([
+            'If-Match' => $this->etag($vehicle),
+            'Idempotency-Key' => (string) str()->uuid(),
+        ])->post('/api/vehicles/'.$vehicle->id.'/images', ['files' => [
+            UploadedFile::fake()->create('overflow.png', 20, 'image/png'),
+        ]])->assertUnprocessable();
 
         $this->assertSame(20, $vehicle->images()->count());
         Storage::disk('public')->assertDirectoryEmpty("vehicles/{$vehicle->id}");

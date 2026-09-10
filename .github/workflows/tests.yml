@@ -55,6 +55,9 @@ jobs:
       - name: Check code formatting
         run: vendor/bin/pint --test
 
+      - name: Check architecture dependencies
+        run: composer architecture
+
       - name: Validate OpenAPI documentation
         run: php artisan scramble:analyze
 

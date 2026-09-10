@@ -2,26 +2,15 @@
 
 namespace App\Providers;
 
-use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        $this->app
-            ->when(VehicleImageLifecycle::class)
-            ->needs(Filesystem::class)
-            ->give(fn (): Filesystem => Storage::disk('public'));
-    }
-
     public function boot(): void
     {
         JsonResource::wrap('data');

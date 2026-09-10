@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Enums\FuelType;
-use App\Enums\Transmission;
 use App\Models\User;
-use App\Models\Vehicle;
+use App\Modules\Vehicles\Domain\Enum\FuelType;
+use App\Modules\Vehicles\Domain\Enum\Transmission;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Vehicle> */

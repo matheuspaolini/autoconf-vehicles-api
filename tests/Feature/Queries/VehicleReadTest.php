@@ -2,16 +2,13 @@
 
 namespace Tests\Feature\Queries;
 
-use App\Domain\Vehicles\Read\VehicleCatalogGrammar;
-use App\Domain\Vehicles\Read\VehicleRead;
-use App\Http\Resources\VehicleDetailResource;
-use App\Http\Resources\VehicleListResource;
 use App\Models\User;
-use App\Models\Vehicle;
-use App\Models\VehicleImage;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Modules\Vehicles\Application\Data\VehicleCatalogCriteria;
+use App\Modules\Vehicles\Application\Query\GetVehicleDetailHandler;
+use App\Modules\Vehicles\Application\Query\ListVehiclesHandler;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleImageRecord as VehicleImage;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -19,69 +16,53 @@ class VehicleReadTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_catalog_query_loads_list_relations_without_resource_queries(): void
+    public function test_catalog_projection_loads_list_data_without_follow_up_queries(): void
     {
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         VehicleImage::factory()->for($vehicle)->cover()->create();
+        $criteria = new VehicleCatalogCriteria([], null, null, []);
 
-        $criteria = app(VehicleCatalogGrammar::class)->criteria([]);
-        $listed = app(VehicleRead::class)->catalog($criteria, $owner)->getCollection()->first();
+        $page = app(ListVehiclesHandler::class)->handle($criteria);
+        $listed = $page->items[0];
 
-        $this->assertInstanceOf(Vehicle::class, $listed);
         $this->assertSame($vehicle->id, $listed->id);
         $this->assertSame($owner->id, $listed->owner->id);
-        $this->assertResourceDoesNotQuery(fn () => VehicleListResource::make($listed)->resolve($this->requestFor($owner)));
+        $this->assertDoesNotQuery(static fn () => $listed->coverImage?->path);
     }
 
-    public function test_detail_returns_a_fresh_vehicle_with_its_ordered_gallery(): void
+    public function test_detail_projection_is_fresh_and_orders_the_cover_first(): void
     {
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
+        VehicleImage::factory()->for($vehicle)->create();
         $cover = VehicleImage::factory()->for($vehicle)->cover()->create();
-        $stale = Vehicle::query()->findOrFail($vehicle->getKey());
 
         Vehicle::query()->whereKey($vehicle)->update(['marca' => 'Ford']);
+        $detail = app(GetVehicleDetailHandler::class)->handle((int) $vehicle->getKey());
 
-        $detail = app(VehicleRead::class)->detail((int) $vehicle->getKey());
-
-        $this->assertInstanceOf(Vehicle::class, $detail);
-        $this->assertSame('Ford', $detail->marca);
-        $this->assertNotSame($stale->marca, $detail->marca);
-        $this->assertSame($owner->id, $detail->creator->id);
-        $this->assertSame($owner->id, $detail->updater->id);
-        $this->assertTrue($detail->relationLoaded('images'));
-        $this->assertSame([$cover->id], $detail->images->modelKeys());
-        $this->assertResourceDoesNotQuery(fn () => VehicleDetailResource::make($detail)->resolve($this->requestFor($owner)));
+        $this->assertNotNull($detail);
+        $this->assertSame('Ford', $detail->details->brand);
+        $this->assertSame($cover->id, $detail->images[0]->id);
+        $this->assertDoesNotQuery(static fn () => $detail->images[0]->path);
     }
 
-    public function test_detail_throws_for_an_unknown_vehicle(): void
+    public function test_detail_returns_null_for_an_unknown_vehicle(): void
     {
-        $this->expectException(ModelNotFoundException::class);
-
-        app(VehicleRead::class)->detail(999);
+        $this->assertNull(app(GetVehicleDetailHandler::class)->handle(999));
     }
 
-    private function assertResourceDoesNotQuery(callable $resolve): void
+    private function assertDoesNotQuery(callable $read): void
     {
         DB::flushQueryLog();
         DB::enableQueryLog();
 
         try {
-            $resolve();
-
+            $read();
             $this->assertSame([], DB::getQueryLog());
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();
         }
-    }
-
-    private function requestFor(User $user): Request
-    {
-        $request = Request::create('/');
-        $request->setUserResolver(fn (): User => $user);
-
-        return $request;
     }
 }

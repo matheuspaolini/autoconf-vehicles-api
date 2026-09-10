@@ -2,12 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Domain\Vehicles\VehicleGallery\VehicleImageLifecycle;
-use App\Jobs\CleanupVehicleMedia;
 use App\Models\User;
-use App\Models\Vehicle;
-use App\Models\VehicleImage;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleImageRecord as VehicleImage;
+use App\Modules\Vehicles\Infrastructure\Persistence\Eloquent\VehicleRecord as Vehicle;
+use App\Modules\Vehicles\Infrastructure\Queue\CleanupVehicleMedia;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -43,14 +41,15 @@ class VehicleImageLifecycleTest extends TestCase
         $owner = User::factory()->create();
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
 
-        $created = app(VehicleImageLifecycle::class)->upload($vehicle, $owner, [
+        $response = $this->actingAs($owner)->withHeaders([
+            'If-Match' => $this->etag($vehicle),
+            'Idempotency-Key' => (string) str()->uuid(),
+        ])->post('/api/vehicles/'.$vehicle->id.'/images', ['files' => [
             UploadedFile::fake()->create('one.png', 20, 'image/png'),
             UploadedFile::fake()->create('two.png', 20, 'image/png'),
-        ], $vehicle->lock_version);
+        ]])->assertCreated();
 
-        $this->assertCount(2, $created);
-        $this->assertTrue($created->first()->is_cover);
-        $this->assertFalse($created->last()->is_cover);
+        $response->assertJsonPath('data.0.is_cover', true)->assertJsonPath('data.1.is_cover', false);
         $this->assertSame($owner->id, $vehicle->refresh()->updated_by);
         $this->assertValidGallery($vehicle);
     }
@@ -73,7 +72,7 @@ class VehicleImageLifecycleTest extends TestCase
             ->assertNoContent();
 
         $this->assertTrue($first->refresh()->is_cover);
-        $this->dispatchedCleanupJob()->handle();
+        app()->call([$this->dispatchedCleanupJob(), 'handle']);
         Storage::disk('public')->assertMissing($second->path);
     }
 
@@ -84,7 +83,9 @@ class VehicleImageLifecycleTest extends TestCase
         $vehicle = Vehicle::factory()->forOwner($owner)->create();
         $image = $this->image($vehicle, 'only.png', true);
 
-        app(VehicleImageLifecycle::class)->delete($vehicle, $image, $owner, $vehicle->lock_version);
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle))
+            ->deleteJson("/api/vehicles/{$vehicle->id}/images/{$image->id}")
+            ->assertNoContent();
 
         $this->assertValidGallery($vehicle);
         $this->assertDatabaseMissing('vehicle_images', ['id' => $image->id]);
@@ -112,11 +113,9 @@ class VehicleImageLifecycleTest extends TestCase
         $cover = $this->image($vehicle, 'cover.png', true);
         $otherCover = $this->image($otherVehicle, 'other-cover.png', true);
 
-        try {
-            app(VehicleImageLifecycle::class)->setCover($vehicle, $otherCover, $owner, $vehicle->lock_version);
-            $this->fail('Expected an image from another vehicle to be rejected.');
-        } catch (ModelNotFoundException) {
-        }
+        $this->actingAs($owner)->withHeader('If-Match', $this->etag($vehicle))
+            ->patchJson("/api/vehicles/{$vehicle->id}/images/{$otherCover->id}/cover")
+            ->assertNotFound();
 
         $this->assertTrue($cover->refresh()->is_cover);
         $this->assertTrue($otherCover->refresh()->is_cover);
