@@ -11,7 +11,7 @@ use App\Modules\Vehicles\Presentation\Http\Controllers\VehicleController;
 use App\Modules\Vehicles\Presentation\Http\Controllers\VehicleImageIndexController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('auth')->middleware('web')->group(function (): void {
+Route::prefix('auth')->group(function (): void {
     Route::post('/register', RegisterController::class)->middleware('throttle:authentication');
     Route::post('/login', LoginController::class)->middleware('throttle:authentication');
     Route::middleware('auth:sanctum')->group(function (): void {

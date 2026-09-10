@@ -28,8 +28,6 @@ class VehicleSeeder extends Seeder
     /** @var array<string, true> */
     private array $usedContentHashes = [];
 
-    private bool $commonsAvailable = true;
-
     public function run(User $admin, User $user): void
     {
         foreach ($this->vehicles() as $index => $data) {
@@ -142,10 +140,6 @@ class VehicleSeeder extends Seeder
     /** @return list<array{download_url: string, source_url: string, mime: string}> */
     private function commonsImages(string $brand, string $model): array
     {
-        if (! $this->commonsAvailable) {
-            return [];
-        }
-
         $query = "{$brand} {$model}";
         $requiredWords = \array_values(\array_filter(
             \preg_split('/[^a-z0-9]+/', \strtolower($model)) ?: [],
@@ -161,8 +155,6 @@ class VehicleSeeder extends Seeder
             ]);
 
             if (! $response->successful()) {
-                $this->commonsAvailable = false;
-
                 return [];
             }
 
@@ -185,8 +177,6 @@ class VehicleSeeder extends Seeder
 
             return $images;
         } catch (\Throwable) {
-            $this->commonsAvailable = false;
-
             return [];
         }
     }

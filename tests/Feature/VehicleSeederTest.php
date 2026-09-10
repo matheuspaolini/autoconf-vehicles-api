@@ -56,7 +56,7 @@ class VehicleSeederTest extends TestCase
         $this->assertSame(60, Vehicle::query()->count());
         $this->assertSame(0, VehicleImage::query()->count());
         $this->assertSame([], Storage::disk('public')->allFiles());
-        Http::assertSentCount(2);
+        Http::assertSentCount(120);
     }
 
     private function responseFor(Request $request): mixed

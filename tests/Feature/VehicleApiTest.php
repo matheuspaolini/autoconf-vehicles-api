@@ -15,6 +15,8 @@ class VehicleApiTest extends TestCase
 
     public function test_registration_creates_a_non_admin_authenticated_user(): void
     {
+        $this->asStatefulSpa();
+
         $response = $this->withCsrf()->postJson('/api/auth/register', ['name' => 'Ana', 'email' => 'ANA@EXAMPLE.COM', 'password' => 'password1', 'password_confirmation' => 'password1']);
 
         $response->assertCreated()->assertJsonPath('data.email', 'ana@example.com')->assertJsonPath('data.is_admin', false);
@@ -25,9 +27,12 @@ class VehicleApiTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'user@example.com', 'password' => 'password1']);
 
+        $this->asStatefulSpa();
+
         $this->withCsrf()->postJson('/api/auth/login', ['email' => 'USER@EXAMPLE.COM', 'password' => 'password1'])
             ->assertOk()
-            ->assertJsonPath('data.id', $user->id);
+            ->assertJsonPath('data.id', $user->id)
+            ->assertCookie(config('session.cookie'));
         $this->assertAuthenticatedAs($user);
         $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('data.email', 'user@example.com');
         $this->withCsrf()->postJson('/api/auth/logout')->assertNoContent();
@@ -37,12 +42,21 @@ class VehicleApiTest extends TestCase
     public function test_invalid_logins_are_validation_errors_and_are_rate_limited(): void
     {
         User::factory()->create(['email' => 'user@example.com', 'password' => 'password1']);
+        $this->asStatefulSpa();
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $this->withCsrf()->postJson('/api/auth/login', ['email' => 'user@example.com', 'password' => 'wrong-password'])->assertUnprocessable()->assertJsonValidationErrors('email');
         }
 
         $this->withCsrf()->postJson('/api/auth/login', ['email' => 'user@example.com', 'password' => 'wrong-password'])->assertTooManyRequests();
+    }
+
+    public function test_an_unrecognized_origin_does_not_receive_stateful_authentication(): void
+    {
+        $this->withHeaders([
+            'Origin' => 'http://untrusted.example',
+            'Referer' => 'http://untrusted.example/login',
+        ])->getJson('/api/auth/me')->assertUnauthorized();
     }
 
     public function test_every_response_echoes_or_generates_a_request_identifier(): void
@@ -136,6 +150,14 @@ class VehicleApiTest extends TestCase
 
         $this->get('/storage/vehicles/10/placeholder.png')
             ->assertOk();
+    }
+
+    private function asStatefulSpa(): void
+    {
+        $this->withHeaders([
+            'Origin' => 'http://localhost:5173',
+            'Referer' => 'http://localhost:5173/login',
+        ]);
     }
 
     /** @return array<string, mixed> */
